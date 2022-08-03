@@ -22,7 +22,8 @@ jobs:
         id: semver
       - name: 'Check version'
         run: |
-          echo "version is ${{ steps.semver.output.version }}"
+          echo "version is ${{ steps.semver.outputs.version }}"
+          echo "version is ${{ steps.semver.outputs.version_tag }}"
       - name: 'Az CLI login'
         uses: azure/login@v1
         with:
@@ -31,7 +32,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: 'Run Azure CLI commands'
         run: |
-          docker build -f Dockerfile -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
+          docker build -f Dockerfile -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:v${{ steps.semver.outputs.version }} .
           az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
-          # docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }}
+          # docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:v${{ steps.semver.outputs.version }}
           # echo "acr push done"
