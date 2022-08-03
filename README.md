@@ -1,14 +1,30 @@
-# Project
+# Driver container image for AKS VHD
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+This repo provides steps to build a container image with all components required for 
+Kubernetes Nvidia GPU integration. Run it as a privileged container in the host PID namespace.
+It will enter the host mount namespace and install the nvidia drivers, container runtime, 
+and associated libraries on the host, validating their functionality
 
-As the maintainer of this project, please make a few updates:
+## Build
+```
+docker build -f Dockerfile  -t docker.io/alexeldeib/aks-gpu:latest .
+docker push docker.io/alexeldeib/aks-gpu:latest
+```
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+## Run
+```bash
+mkdir -p /opt/{actions,gpu}
+ctr image pull docker.io/alexeldeib/aks-gpu:latest
+ctr run --privileged --net-host --with-ns pid:/proc/1/ns/pid --mount type=bind,src=/opt/gpu,dst=/mnt/gpu,options=rbind --mount type=bind,src=/opt/actions,dst=/mnt/actions,options=rbind -t docker.io/alexeldeib/aks-gpu:latest /entrypoint.sh install.sh
+```
+
+or Docker (untested...)
+```bash
+docker run --privileged -v /opt/gpu:/mnt/gpu -v /opt/actions:/mnt/actions docker.io/alexeldeib/aks-gpu:latest
+```
+
+Note the `--with-ns pid:/proc/1/ns/pid` and `--privileged`, as well as the bind mounts, these are key.
+
 
 ## Contributing
 

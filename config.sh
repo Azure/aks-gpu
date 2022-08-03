@@ -1,0 +1,5 @@
+DRIVER_VERSION="470.57.02"
+NVIDIA_CONTAINER_RUNTIME_VERSION="3.6.0"
+NVIDIA_CONTAINER_TOOLKIT_VER="1.6.0"
+NVIDIA_PACKAGES="libnvidia-container1 libnvidia-container-tools nvidia-container-toolkit"
+GPU_DEST="/usr/local/nvidia"
