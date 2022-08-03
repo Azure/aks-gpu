@@ -47,5 +47,5 @@ jobs:
           # echo "acr push done"
       - name: Move cache
         run: |
-          rm -rf /tmp/.buildx-cache
+          rm -r /tmp/.buildx-cache || true
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
