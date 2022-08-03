@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - uses: paulhatch/semantic-version@v5.0.0-alpha2
         with:
           bump_each_commit: true
