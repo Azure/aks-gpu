@@ -1,10 +1,9 @@
 name: Building and Pushing to MCR
-on: [workflow_dispatch]
-# on:
-#   push:
-#     branches:
-#       - main
-#   workflow_dispatch: {}
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
 permissions:
   id-token: write
   contents: read
@@ -19,6 +18,7 @@ jobs:
       - uses: paulhatch/semantic-version@v5.0.0-alpha2
         with:
           bump_each_commit: true
+          format: "${major}.${minor}.${patch}-${increment}"
         id: semver
       - name: 'Check version'
         run: |
