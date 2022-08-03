@@ -17,8 +17,8 @@ jobs:
           fetch-depth: 0
       - uses: paulhatch/semantic-version@v5.0.0-alpha2
         with:
-          bump_each_commit: true
-          version_format: "${major}.${minor}.${patch}-${increment}sha${GITHUB_SHA:0:6}"
+          bump_each_commit: false
+          version_format: "v${major}.${minor}.${patch}-${increment}-sha-${GITHUB_SHA:0:6}"
         id: semver
       - name: 'Check version'
         run: |
