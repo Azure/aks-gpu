@@ -14,7 +14,7 @@ RUN bash download.sh
 
 FROM ubuntu:18.04
 
-COPY --from=gpu /opt/gpu /opt/gpu
+COPY --from=gpu /opt/gpu/ /opt/gpu/
 COPY entrypoint.sh /entrypoint.sh 
 COPY install.sh /opt/actions/install.sh
 

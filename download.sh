@@ -15,6 +15,11 @@ pushd "$workdir" || exit
 # download nvidia drivers, move to permanent cache
 curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run 
 mv NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run
+pushd /opt/gpu
+# extract runfile, takes some time, so do ahead of time
+sh /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run -x
+rm /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run
+popd
 
 # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
 curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz

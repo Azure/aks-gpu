@@ -9,7 +9,7 @@ KERNEL_NAME=$(uname -r)
 LOG_FILE_NAME="/var/log/nvidia-installer-$(date +%s).log"
 
 # host needs these tools to build and load kernel module, can remove ca-certificates, was only for testing
-apt update && apt install -y kmod gcc make dkms initramfs-tools ca-certificates --no-install-recommends
+apt update && apt install -y kmod gcc make dkms initramfs-tools ca-certificates linux-headers-$(uname -r) --no-install-recommends
 
 # install cached nvidia debian packages for container runtime compatibility
 for apt_package in $NVIDIA_PACKAGES; do
@@ -26,7 +26,6 @@ set +e
 umount -l /usr/lib/x86_64-linux-gnu || true
 umount -l /tmp/overlay || true
 rm -r /tmp/overlay
-rm -r /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}
 set -e
 
 # set up overlayfs to change install location of nvidia libs from /usr/lib/x86_64-linux-gnu to /usr/local/nvidia
@@ -36,13 +35,6 @@ mount -t tmpfs tmpfs /tmp/overlay
 mkdir /tmp/overlay/{workdir,lib64}
 mkdir -p ${GPU_DEST}/lib64
 mount -t overlay overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir /usr/lib/x86_64-linux-gnu
-
-# clean up previously uncompressed driver, if it exists
-# causes driver installer to fail if it exists
-pushd /opt/gpu
-# extract runfile, takes some time, so do ahead of time
-sh /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run -x
-popd
 
 # install nvidia drivers
 /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
@@ -69,8 +61,5 @@ dkms status
 nvidia-modprobe -u -c0
 nvidia-smi
 
-systemctl enable nvidia-modprobe
-systemctl restart nvidia-modprobe
-
 # install fabricmanager for nvlink based systems
-/opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+bash /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh

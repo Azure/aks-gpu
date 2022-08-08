@@ -1,4 +1,5 @@
 #!/bin/sh
+set -uxo pipefail
 
 echo "Staring NVIDIA Fabric Manager installation"
 

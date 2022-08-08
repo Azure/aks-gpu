@@ -1,7 +1,13 @@
+nv_470_driver := "470.57.02"
+nv_510_driver := "510.47.03"
+registry := "docker.io/alexeldeib"
+
 default: push
 
-push: (containerize)
-	docker push docker.io/alexeldeib/aks-gpu:latest
+push: (build)
+	docker push {{ registry }}/aks-gpu:{{ nv_470_driver }}
+	docker push {{ registry }}/aks-gpu:{{ nv_510_driver }}
 
-containerize:
-	docker build -f Dockerfile  -t docker.io/alexeldeib/aks-gpu:latest .
+build:
+	docker build --build-arg DRIVER_VERSION={{ nv_470_driver }} -f Dockerfile  -t {{ registry }}/aks-gpu:{{ nv_470_driver }} .
+	docker build --build-arg DRIVER_VERSION={{ nv_510_driver }} -f Dockerfile  -t {{ registry }}/aks-gpu:{{ nv_510_driver }} .
