@@ -11,6 +11,9 @@ permissions:
 jobs: 
   publish:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        driver_version: ["470.57.02", "510.47.03"]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -27,7 +30,7 @@ jobs:
       - uses: paulhatch/semantic-version@v5.0.0-alpha2
         with:
           bump_each_commit: false
-          version_format: "v${major}.${minor}.${patch}-${increment}-sha-${GITHUB_SHA:0:6}"
+          version_format: "${{ matrix.driver_version }}-v${major}.${minor}.${patch}-rev${increment}-sha-${GITHUB_SHA:0:6}"
         id: semver
       - name: 'Check version'
         run: |
@@ -44,11 +47,11 @@ jobs:
           set -x
           echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
-          docker buildx build --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
+          docker buildx build --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
           az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
           docker images
-          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }}
-          echo "acr push done"
+          # docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }}
+          # echo "acr push done"
       - name: Move cache
         run: |
           rm -r /tmp/.buildx-cache

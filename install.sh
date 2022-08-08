@@ -9,7 +9,7 @@ KERNEL_NAME=$(uname -r)
 LOG_FILE_NAME="/var/log/nvidia-installer-$(date +%s).log"
 
 # host needs these tools to build and load kernel module, can remove ca-certificates, was only for testing
-apt update && apt install -y kmod gcc make dkms initramfs-tools linux-headers-$(uname -r) ca-certificates --no-install-recommends
+apt update && apt install -y kmod gcc make dkms initramfs-tools ca-certificates --no-install-recommends
 
 # install cached nvidia debian packages for container runtime compatibility
 for apt_package in $NVIDIA_PACKAGES; do
@@ -69,4 +69,8 @@ dkms status
 nvidia-modprobe -u -c0
 nvidia-smi
 
+systemctl enable nvidia-modprobe
+systemctl restart nvidia-modprobe
+
+# install fabricmanager for nvlink based systems
 /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh

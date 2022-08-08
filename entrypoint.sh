@@ -10,11 +10,17 @@ if [[ -z "${1}" ]]; then
     exit 1
 fi
 
-if [[ "${1}" == "copy" ]] || [[ "${1}" == "install" ]]; then
+if [[ "${1}" == "copy" ]]; then
     echo "copying gpu cache files and exiting"
     cp -a /opt/gpu/. /mnt/gpu/
     echo "Completed successfully!"
     exit 0
+fi
+
+if [[ "${1}" == "install" ]]; then
+    echo "copying gpu cache files"
+    cp -a /opt/gpu/. /mnt/gpu/
+    echo "copied successfully!"
 fi
 
 ACTION_FILE="/opt/actions/install.sh"
