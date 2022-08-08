@@ -10,14 +10,14 @@ if [[ -z "${1}" ]]; then
     exit 1
 fi
 
-if [[ "${1}" == "copy" ]]; then
+if [[ "${1}" == "copy" ]] || [[ "${1}" == "install" ]]; then
     echo "copying gpu cache files and exiting"
     cp -a /opt/gpu/. /mnt/gpu/
     echo "Completed successfully!"
     exit 0
 fi
 
-ACTION_FILE="/opt/actions/${1}"
+ACTION_FILE="/opt/actions/install.sh"
 
 if [[ ! -f "$ACTION_FILE" ]]; then
     echo "Expected to find action file '$ACTION_FILE', but did not exist"
@@ -34,7 +34,6 @@ cp -R /opt/actions/. /mnt/actions
 
 echo "Executing nsenter"
 
-cp -a /opt/gpu/. /mnt/gpu/
 nsenter -t 1 -m bash "${ACTION_FILE}"
 RESULT="${PIPESTATUS[0]}"
 

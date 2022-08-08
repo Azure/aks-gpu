@@ -25,6 +25,14 @@ docker run --privileged -v /opt/gpu:/mnt/gpu -v /opt/actions:/mnt/actions docker
 
 Note the `--with-ns pid:/proc/1/ns/pid` and `--privileged`, as well as the bind mounts, these are key.
 
+## Fabric manager installation
+
+This repo also includes an installation script for Nvidia's fabric manager component.
+There is an existing installation script in the redistributed files, but in the latest
+versions some of the filepaths changed and it seems broken. This is a workaround until 
+an upstream fix lands.
+
+```bash
 
 ## Contributing
 

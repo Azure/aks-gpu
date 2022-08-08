@@ -2,6 +2,8 @@
 set -euxo pipefail
 
 source /opt/gpu/config.sh
+trap 'PS4="+ "' exit
+PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 
 KERNEL_NAME=$(uname -r)
 LOG_FILE_NAME="/var/log/nvidia-installer-$(date +%s).log"
@@ -66,3 +68,5 @@ set -e
 dkms status
 nvidia-modprobe -u -c0
 nvidia-smi
+
+/opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh

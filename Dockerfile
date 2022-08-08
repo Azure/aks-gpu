@@ -3,6 +3,7 @@ RUN apt update && apt install -y curl xz-utils gnupg2 ca-certificates --no-insta
 
 WORKDIR /opt/gpu
 COPY blacklist-nouveau.conf blacklist-nouveau.conf
+COPY fm_run_package_installer.sh fm_run_package_installer.sh
 COPY config.sh config.sh 
 COPY download.sh download.sh 
 RUN bash download.sh
