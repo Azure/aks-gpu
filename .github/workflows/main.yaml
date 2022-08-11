@@ -36,7 +36,7 @@ jobs:
       - name: 'Build and Push'
         run: |
           set -x
-          TAG="${{ matrix.driver_version }}$(date -Iseconds | cut -c-19 | tr : - | tr -d'-')-sha-${GITHUB_SHA:0:6}"
+          TAG="${{ matrix.driver_version }}$(date -Iseconds | cut -c-19 | tr : - | tr - '-')-sha-${GITHUB_SHA:0:6}"
           echo "tag is: "
           echo $TAG
           docker buildx build --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:$TAG .
