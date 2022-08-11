@@ -27,6 +27,15 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
+      - uses: paulhatch/semantic-version@v5.0.0-alpha2
+        with:
+          bump_each_commit: false
+          version_format: "${{ matrix.driver_version }}-v${major}.${minor}.${patch}-rev${increment}-sha-${GITHUB_SHA:0:6}"
+        id: semver
+      - name: 'Check version'
+        run: |
+          echo "version is ${{ steps.semver.outputs.version }}"
+          echo "version is ${{ steps.semver.outputs.version_tag }}"
       - name: 'Azure CLI login'
         uses: azure/login@v1
         with:
@@ -36,13 +45,12 @@ jobs:
       - name: 'Build and Push'
         run: |
           set -x
-          TAG="${{ matrix.driver_version }}-$(date -Iseconds | cut -c-19 | tr : - | tr -d '-')-sha-${GITHUB_SHA:0:6}"
           echo "tag is: "
-          echo $TAG
-          docker buildx build --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:$TAG .
+          echo ${{ steps.semver.outputs.version }}
+          docker buildx build --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
           az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
           docker images
-          # docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:$TAG
+          # docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }}
           echo "acr push done"
       - name: Move cache
         run: |
