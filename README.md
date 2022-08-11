@@ -20,7 +20,7 @@ ctr run --privileged --net-host --with-ns pid:/proc/1/ns/pid --mount type=bind,s
 
 or Docker (untested...)
 ```bash
-docker run -it --privileged --net=host -v /opt/gpu:/mnt/gpu -v /opt/actions:/mnt/actions --rm docker.io/alexeldeib/aks-gpu:latest install
+docker run -it --privileged --net=host --pid=host -v /opt/gpu:/mnt/gpu -v /opt/actions:/mnt/actions --rm docker.io/alexeldeib/aks-gpu:latest install
 ```
 
 Note the `--with-ns pid:/proc/1/ns/pid` and `--privileged`, as well as the bind mounts, these are key.
