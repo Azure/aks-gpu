@@ -4,22 +4,18 @@ set -euo pipefail
 source /etc/os-release
 source /opt/gpu/config.sh
 
-NVIDIA_CONTAINER_RUNTIME_VERSION="3.6.0"
-NVIDIA_CONTAINER_TOOLKIT_VER="1.6.0"
-NVIDIA_PACKAGES="libnvidia-container1 libnvidia-container-tools nvidia-container-toolkit"
-GPU_DEST="/usr/local/nvidia"
-
 workdir="$(mktemp -d)"
 pushd "$workdir" || exit
 
 # download nvidia drivers, move to permanent cache
 curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run 
 mv NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run
-pushd /opt/gpu
-# extract runfile, takes some time, so do ahead of time
-sh /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run -x
-rm /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run
-popd
+# TODO: reenable this, it saves like 30sec. but it pushes vhd to capacity and starts to fail image pulls :(
+# pushd /opt/gpu
+# # extract runfile, takes some time, so do ahead of time
+# sh /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run -x
+# rm /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run
+# popd
 
 # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
 curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
@@ -44,6 +40,13 @@ apt-get download nvidia-container-runtime=${NVIDIA_CONTAINER_RUNTIME_VERSION}*
 
 # move debs to permanent cache
 mv nvidia-container-runtime_${NVIDIA_CONTAINER_RUNTIME_VERSION}* /opt/gpu
+
+# nvidia-docker2 for docker runtime
+apt-get download nvidia-docker2=${NVIDIA_DOCKER_VERSION}
+mkdir -p /tmp/nvidia-docker2
+dpkg-deb -R ./nvidia-docker2_${NVIDIA_DOCKER_VERSION}_all.deb /tmp/nvidia-docker2
+mkdir -p /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}
+cp -r /tmp/nvidia-docker2/usr/* /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/
 
 popd || exit
 rm -r "$workdir"

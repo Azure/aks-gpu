@@ -37,7 +37,9 @@ mkdir -p ${GPU_DEST}/lib64
 mount -t overlay overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir /usr/lib/x86_64-linux-gnu
 
 # install nvidia drivers
-/opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
+pushd /opt/gpu
+sh /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
+popd
 
 # move nvidia libs to correct location from temporary overlayfs
 cp -a /tmp/overlay/lib64 ${GPU_DEST}/lib64
@@ -61,5 +63,10 @@ dkms status
 nvidia-modprobe -u -c0
 nvidia-smi
 
+cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
+
 # install fabricmanager for nvlink based systems
 bash /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+
+du -hs /opt/gpu
+rm -r /opt/gpu
