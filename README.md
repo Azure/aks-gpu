@@ -30,9 +30,7 @@ Note the `--with-ns pid:/proc/1/ns/pid` and `--privileged`, as well as the bind 
 This repo also includes an installation script for Nvidia's fabric manager component.
 There is an existing installation script in the redistributed files, but in the latest
 versions some of the filepaths changed and it seems broken. This is a workaround until 
-an upstream fix lands.
-
-```bash
+an upstream fix lands. See [fabricmanager.md](./fabricmanager.md) for details.
 
 ## Contributing
 
