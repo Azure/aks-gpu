@@ -14,8 +14,6 @@ RUN envsubst < config.sh > config.sh.tmp && mv config.sh.tmp config.sh
 COPY download.sh download.sh 
 RUN bash download.sh
 
-ARG distro
-
 FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro}
 
 COPY --from=gpu /opt/gpu/ /opt/gpu/
