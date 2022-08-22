@@ -1,4 +1,6 @@
-FROM ubuntu:18.04 as gpu
+ARG distro
+
+FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro} as gpu
 
 RUN apt update && apt install -y curl xz-utils gnupg2 ca-certificates gettext-base --no-install-recommends
 
@@ -12,7 +14,7 @@ RUN envsubst < config.sh > config.sh.tmp && mv config.sh.tmp config.sh
 COPY download.sh download.sh 
 RUN bash download.sh
 
-FROM ubuntu:18.04
+FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro}
 
 COPY --from=gpu /opt/gpu/ /opt/gpu/
 COPY entrypoint.sh /entrypoint.sh 
