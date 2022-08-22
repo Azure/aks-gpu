@@ -1,4 +1,4 @@
-ARG distro
+ARG distro=18.04
 
 FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro} as gpu
 
