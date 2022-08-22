@@ -1,4 +1,4 @@
-name: Building and Pushing to MCR
+name: CI test build
 on:
   pull_request:
     branches:
