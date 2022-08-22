@@ -7,21 +7,37 @@ source /opt/gpu/config.sh
 workdir="$(mktemp -d)"
 pushd "$workdir" || exit
 
+echo "$DRIVER_VERSION" && sleep 3
+
+if [[ "${DRIVER_KIND}" == "compute" ]]; then
+    RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
+    curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run 
+elif [[ "${DRIVER_KIND}" == "grid" ]]; then
+    RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
+    curl -fsSLO https://download.microsoft.com/download/6/2/5/625e22a0-34ea-4d03-8738-a639acebc15e/${RUNFILE}.run
+else
+    echo "Invalid driver kind: ${DRIVER_KIND}"
+    exit 1
+fi
+
 # download nvidia drivers, move to permanent cache
-curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run 
-mv NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run
+# curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run 
+mv ${RUNFILE}.run /opt/gpu/${RUNFILE}.run
 # TODO: reenable this, it saves like 30sec. but it pushes vhd to capacity and starts to fail image pulls :(
 pushd /opt/gpu
 # extract runfile, takes some time, so do ahead of time
-sh /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run -x
-rm /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run
+sh /opt/gpu/${RUNFILE}.run -x
+rm /opt/gpu/${RUNFILE}.run
 popd
 
-# download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
-curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
-tar -xvf fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
-mv fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}
-mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+
+if [[ "${DRIVER_KIND}" == "compute" ]]; then
+    # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
+    curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
+    tar -xvf fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
+    mv fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}
+    mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+fi
 
 # configure nvidia apt repo to cache packages
 curl -fsSLO https://nvidia.github.io/nvidia-docker/gpgkey

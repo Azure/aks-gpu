@@ -1,13 +1,16 @@
-nv_470_driver := "470.57.02"
-nv_510_driver := "510.47.03"
+nv_470_driver := "470.82.01"
+nv_510_driver := "510.73.08"
 registry := "docker.io/alexeldeib"
 
-default: push
+default: (build "510.73.08" "compute") (build "510.73.08" "grid")
 
-push: (build)
-	docker push {{ registry }}/aks-gpu:{{ nv_470_driver }}
-	docker push {{ registry }}/aks-gpu:{{ nv_510_driver }}
+push VERSION KIND: (build VERSION KIND)
+	# docker push {{ registry }}/aks-gpu:{{ nv_470_driver }}
+	docker push {{ registry }}/aks-gpu:{{VERSION}}-{{KIND}}
 
-build:
-	docker build --build-arg DRIVER_VERSION={{ nv_470_driver }} -f Dockerfile  -t {{ registry }}/aks-gpu:{{ nv_470_driver }} .
-	docker build --build-arg DRIVER_VERSION={{ nv_510_driver }} -f Dockerfile  -t {{ registry }}/aks-gpu:{{ nv_510_driver }} .
+# build:
+# 	# docker build --build-arg DRIVER_VERSION={{ nv_470_driver }} -f Dockerfile  -t {{ registry }}/aks-gpu:{{ nv_470_driver }} .
+# 	docker build --build-arg DRIVER_VERSION={{ nv_510_driver }} -f Dockerfile  -t {{ registry }}/aks-gpu:{{ nv_510_driver }} .
+
+build VERSION KIND:
+	docker build --build-arg DRIVER_KIND={{KIND}} --build-arg DRIVER_VERSION={{VERSION}} -f Dockerfile -t {{ registry }}/aks-gpu:{{VERSION}}-{{KIND}} .

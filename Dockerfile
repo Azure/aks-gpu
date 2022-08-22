@@ -5,6 +5,7 @@ FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro} as gpu
 RUN apt update && apt install -y curl xz-utils gnupg2 ca-certificates gettext-base --no-install-recommends
 
 ARG DRIVER_VERSION
+ARG DRIVER_KIND="compute"
 
 WORKDIR /opt/gpu
 COPY blacklist-nouveau.conf blacklist-nouveau.conf
