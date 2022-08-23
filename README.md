@@ -15,7 +15,7 @@ docker push docker.io/alexeldeib/aks-gpu:latest
 ```bash
 mkdir -p /opt/{actions,gpu}
 ctr image pull docker.io/alexeldeib/aks-gpu:latest
-ctr run --privileged --net-host --with-ns pid:/proc/1/ns/pid --mount type=bind,src=/opt/gpu,dst=/mnt/gpu,options=rbind --mount type=bind,src=/opt/actions,dst=/mnt/actions,options=rbind -t docker.io/alexeldeib/aks-gpu:latest /entrypoint.sh install.sh
+ctr run --privileged --net-host --with-ns pid:/proc/1/ns/pid --mount type=bind,src=/opt/gpu,dst=/mnt/gpu,options=rbind --mount type=bind,src=/opt/actions,dst=/mnt/actions,options=rbind -t docker.io/alexeldeib/aks-gpu:latest gpuinstall /entrypoint.sh install.sh
 ```
 
 or Docker (untested...)
