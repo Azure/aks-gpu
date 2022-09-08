@@ -7,8 +7,6 @@ source /opt/gpu/config.sh
 workdir="$(mktemp -d)"
 pushd "$workdir" || exit
 
-echo "$DRIVER_VERSION" && sleep 3
-
 if [[ "${DRIVER_KIND}" == "compute" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
     curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run 
@@ -21,9 +19,7 @@ else
 fi
 
 # download nvidia drivers, move to permanent cache
-# curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run 
 mv ${RUNFILE}.run /opt/gpu/${RUNFILE}.run
-# TODO: reenable this, it saves like 30sec. but it pushes vhd to capacity and starts to fail image pulls :(
 pushd /opt/gpu
 # extract runfile, takes some time, so do ahead of time
 sh /opt/gpu/${RUNFILE}.run -x
