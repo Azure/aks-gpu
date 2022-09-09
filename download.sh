@@ -13,7 +13,7 @@ mv NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run /opt/gpu/NVIDIA-Linux-x86_64-${DRIV
 # TODO: reenable this, it saves like 30sec. but it pushes vhd to capacity and starts to fail image pulls :(
 pushd /opt/gpu
 # extract runfile, takes some time, so do ahead of time
-sh /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run -x
+sh /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run -x --add-this-kernel
 rm /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run
 popd
 
