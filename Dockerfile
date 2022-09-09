@@ -6,7 +6,7 @@ RUN apt update && apt install -y curl xz-utils gnupg2 ca-certificates gettext-ba
 
 ARG DRIVER_VERSION
 ARG DRIVER_URL
-ARG DRIVER_KIND="compute"
+ARG DRIVER_KIND="cuda"
 
 WORKDIR /opt/gpu
 COPY blacklist-nouveau.conf blacklist-nouveau.conf
