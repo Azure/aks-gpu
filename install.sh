@@ -36,7 +36,7 @@ mkdir /tmp/overlay/{workdir,lib64}
 mkdir -p ${GPU_DEST}/lib64
 mount -t overlay overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir /usr/lib/x86_64-linux-gnu
 
-if [[ "${DRIVER_KIND}" == "compute" ]]; then
+if [[ "${DRIVER_KIND}" == "cuda" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
 elif [[ "${DRIVER_KIND}" == "grid" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
@@ -75,7 +75,7 @@ nvidia-smi
 cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
 
 # install fabricmanager for nvlink based systems
-if [[ "${DRIVER_KIND}" == "compute" ]]; then
+if [[ "${DRIVER_KIND}" == "cuda" ]]; then
     bash /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 fi
 

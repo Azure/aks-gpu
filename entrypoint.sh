@@ -51,3 +51,13 @@ else
     echo "Failed during nsenter command execution"
     exit 1
 fi
+
+sleep="${2:-}"
+
+if [[ -z "${sleep}" ]]; then
+  exit 0
+fi
+
+echo "Sleeping forever"
+
+sleep infinity
