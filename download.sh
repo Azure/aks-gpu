@@ -14,7 +14,7 @@ mv NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run /opt/gpu/NVIDIA-Linux-x86_64-${DRIV
 pushd /opt/gpu
 # extract runfile, takes some time, so do ahead of time
 sh /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run -x --add-this-kernel
-rm /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run
+rm /opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}*.run
 popd
 
 # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.

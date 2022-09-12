@@ -38,7 +38,7 @@ mount -t overlay overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=/tmp/ove
 
 # install nvidia drivers
 pushd /opt/gpu
-/opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
+/opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}-custom/nvidia-installer -s --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
 popd
 
 # move nvidia libs to correct location from temporary overlayfs
