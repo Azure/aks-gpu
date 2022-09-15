@@ -5,6 +5,8 @@ set -o nounset
 
 set -x
 
+sleep="${2:-}"
+
 if [[ -z "${1}" ]]; then
     echo "Must provide a non-empty action as first argument"
     exit 1
@@ -51,3 +53,11 @@ else
     echo "Failed during nsenter command execution"
     exit 1
 fi
+
+if [[ -z "${sleep}" ]]; then
+  exit 0
+fi
+
+echo "Sleeping forever"
+
+sleep infinity

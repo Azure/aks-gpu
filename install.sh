@@ -8,8 +8,17 @@ PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 KERNEL_NAME=$(uname -r)
 LOG_FILE_NAME="/var/log/nvidia-installer-$(date +%s).log"
 
+set +euo pipefail
+open_devices="$(lsof /dev/nvidia* 2>/dev/null)"
+echo "Open devices: $open_devices"
+
+open_gridd="$(lsof /usr/bin/nvidia-gridd 2>/dev/null)"
+echo "Open gridd: $open_gridd"
+
+set -euo pipefail
+
 # host needs these tools to build and load kernel module, can remove ca-certificates, was only for testing
-apt update && apt install -y kmod gcc make dkms initramfs-tools ca-certificates linux-headers-$(uname -r) --no-install-recommends
+apt install -y kmod gcc make dkms initramfs-tools ca-certificates linux-headers-$(uname -r) --no-install-recommends
 
 # install cached nvidia debian packages for container runtime compatibility
 for apt_package in $NVIDIA_PACKAGES; do
@@ -25,7 +34,7 @@ update-initramfs -u
 set +e
 umount -l /usr/lib/x86_64-linux-gnu || true
 umount -l /tmp/overlay || true
-rm -r /tmp/overlay
+rm -r /tmp/overlay || true
 set -e
 
 # set up overlayfs to change install location of nvidia libs from /usr/lib/x86_64-linux-gnu to /usr/local/nvidia
@@ -36,9 +45,18 @@ mkdir /tmp/overlay/{workdir,lib64}
 mkdir -p ${GPU_DEST}/lib64
 mount -t overlay overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir /usr/lib/x86_64-linux-gnu
 
+if [[ "${DRIVER_KIND}" == "cuda" ]]; then
+    RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
+elif [[ "${DRIVER_KIND}" == "grid" ]]; then
+    RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
+else
+    echo "Invalid driver kind: ${DRIVER_KIND}"
+    exit 1
+fi
+
 # install nvidia drivers
 pushd /opt/gpu
-/opt/gpu/NVIDIA-Linux-x86_64-${DRIVER_VERSION}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
+/opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
 popd
 
 # move nvidia libs to correct location from temporary overlayfs
@@ -66,7 +84,11 @@ nvidia-smi
 cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
 
 # install fabricmanager for nvlink based systems
-bash /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+if [[ "${DRIVER_KIND}" == "cuda" ]]; then
+    bash /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+fi
 
-du -hs /opt/gpu
+mkdir -p /etc/containerd/config.d
+cp /opt/gpu/10-nvidia-runtime.toml /etc/containerd/config.d/10-nvidia-runtime.toml
+
 rm -r /opt/gpu

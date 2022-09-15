@@ -5,8 +5,11 @@ FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro} as gpu
 RUN apt update && apt install -y curl xz-utils gnupg2 ca-certificates gettext-base --no-install-recommends
 
 ARG DRIVER_VERSION
+ARG DRIVER_URL
+ARG DRIVER_KIND="cuda"
 
 WORKDIR /opt/gpu
+COPY 10-nvidia-runtime.toml 10-nvidia-runtime.toml 
 COPY blacklist-nouveau.conf blacklist-nouveau.conf
 COPY fm_run_package_installer.sh fm_run_package_installer.sh
 COPY config.sh config.sh 
