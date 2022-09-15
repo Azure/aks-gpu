@@ -13,25 +13,23 @@ spec:
       labels:
         app: *name
     spec:
-      # affinity:
-      #   nodeAffinity:
-      #     requiredDuringSchedulingIgnoredDuringExecution:
-      #       nodeSelectorTerms:
-      #       - matchExpressions:
-      #         - key: node.kubernetes.io/instance-type
-      #           operator: In
-      #           values:
-      #           - Standard_NP10s
-      #           - Standard_NP20s
-      #           - Standard_NP40s
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                - Standard_NV6ads_A10_v5
       hostNetwork: true
       hostPID: true
       containers:
-      - image: docker.io/alexeldeib/aks-gpu:latest # requires an image with bash, curl, sleep, and nsenter (vanilla ubuntu works)
+      - image: docker.io/alexeldeib/aks-gpu:510.73.08-grid
         imagePullPolicy: Always
         name: *name
         command: ["/entrypoint.sh"]
-        args: ["install.sh"] # if you don't use my image or build one from Dockerfile, set this to "downloadandinstall"
+        args: ["install", "sleep", "force"]
         resources:
           requests:
             {}
@@ -40,8 +38,6 @@ spec:
         securityContext:
           privileged: true
         volumeMounts:
-        - name: actions
-          mountPath: "/opt/actions"
         - name: hostmount
           mountPath: "/mnt/actions"
         - name: gpu
@@ -55,7 +51,4 @@ spec:
         hostPath:
           path: /opt/actions
           type: DirectoryOrCreate
-      - name: actions
-        configMap:
-          name: nsenter-actions
 ---

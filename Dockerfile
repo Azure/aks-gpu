@@ -7,6 +7,7 @@ RUN apt update && apt install -y curl xz-utils gnupg2 ca-certificates gettext-ba
 ARG DRIVER_VERSION
 
 WORKDIR /opt/gpu
+COPY 10-nvidia-runtime.toml 10-nvidia-runtime.toml 
 COPY blacklist-nouveau.conf blacklist-nouveau.conf
 COPY fm_run_package_installer.sh fm_run_package_installer.sh
 COPY config.sh config.sh 
