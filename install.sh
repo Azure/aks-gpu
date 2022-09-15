@@ -8,8 +8,17 @@ PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 KERNEL_NAME=$(uname -r)
 LOG_FILE_NAME="/var/log/nvidia-installer-$(date +%s).log"
 
+set +euo pipefail
+open_devices="$(lsof /dev/nvidia* 2>/dev/null)"
+echo "Open devices: $open_devices"
+
+open_gridd="$(lsof /usr/bin/nvidia-gridd 2>/dev/null)"
+echo "Open gridd: $open_gridd"
+
+set -euo pipefail
+
 # host needs these tools to build and load kernel module, can remove ca-certificates, was only for testing
-apt update && apt install -y kmod gcc make dkms initramfs-tools ca-certificates linux-headers-$(uname -r) --no-install-recommends
+apt install -y kmod gcc make dkms initramfs-tools ca-certificates linux-headers-$(uname -r) --no-install-recommends
 
 # install cached nvidia debian packages for container runtime compatibility
 for apt_package in $NVIDIA_PACKAGES; do
@@ -78,5 +87,8 @@ cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
     bash /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 fi
+
+mkdir -p /etc/containerd/config.d
+cp /opt/gpu/10-nvidia-runtime.toml /etc/containerd/config.d/10-nvidia-runtime.toml
 
 rm -r /opt/gpu

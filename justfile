@@ -7,7 +7,11 @@ cuda_470_driver := "470.82.01"
 cuda_515_driver := "515.65.01"
 registry := "docker.io/alexeldeib"
 
-default: (pushcuda cuda_515_driver) (pushcuda cuda_510_driver) (pushcuda cuda_470_driver) (pushgrid grid_510_driver grid_510_url) (pushgrid grid_470_driver grid_470_url)
+default:
+
+pushallcuda: (pushcuda cuda_515_driver) (pushcuda cuda_510_driver) (pushcuda cuda_470_driver) 
+
+pushallgrid: (pushgrid grid_510_driver grid_510_url) #(pushgrid grid_470_driver grid_470_url)
 
 pushcuda VERSION: (buildcuda VERSION)
 	docker push {{ registry }}/aks-gpu:{{VERSION}}-cuda

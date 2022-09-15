@@ -9,6 +9,7 @@ ARG DRIVER_URL
 ARG DRIVER_KIND="cuda"
 
 WORKDIR /opt/gpu
+COPY 10-nvidia-runtime.toml 10-nvidia-runtime.toml 
 COPY blacklist-nouveau.conf blacklist-nouveau.conf
 COPY fm_run_package_installer.sh fm_run_package_installer.sh
 COPY config.sh config.sh 
