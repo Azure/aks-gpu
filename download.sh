@@ -4,8 +4,6 @@ set -euo pipefail
 source /etc/os-release
 source /opt/gpu/config.sh
 
-apt install -y kmod gcc make dkms initramfs-tools --no-install-recommends
-
 workdir="$(mktemp -d)"
 pushd "$workdir" || exit
 
