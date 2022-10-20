@@ -17,8 +17,7 @@ echo "Open gridd: $open_gridd"
 
 set -euo pipefail
 
-# host needs these tools to build and load kernel module, can remove ca-certificates, was only for testing
-apt install -y kmod gcc make dkms initramfs-tools ca-certificates linux-headers-$(uname -r) --no-install-recommends
+apt install -y linux-headers-$(uname -r) --no-install-recommends
 
 # install cached nvidia debian packages for container runtime compatibility
 for apt_package in $NVIDIA_PACKAGES; do
