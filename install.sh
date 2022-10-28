@@ -17,6 +17,23 @@ echo "Open gridd: $open_gridd"
 
 set -euo pipefail
 
+if [[ -f "${GPU_DEST}/bin/nvidia-smi" ]]; then
+    # uninstall existing driver
+    echo "Found existing driver. Checking version"
+    existing_version="$(nvidia-smi | grep "Driver Version" | cut -d' ' -f3)"
+
+    if [[ "$existing_version" == "$DRIVER_VERSION" ]]; then
+        echo "Matched! Exiting..."
+        exit 0
+    else
+        echo "Mismatch. Uninstalling existing driver"
+        #${GPU_DEST}/bin/nvidia-uninstall --silent
+    fi
+else
+    # no drivers
+    echo "No drivers"
+fi
+
 apt install -y linux-headers-$(uname -r) --no-install-recommends
 
 # install cached nvidia debian packages for container runtime compatibility
