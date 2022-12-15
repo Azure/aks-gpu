@@ -2,6 +2,8 @@
 set -euxo pipefail
 
 source /opt/gpu/config.sh
+source /opt/gpu/package_manager_helpers.sh
+
 trap 'PS4="+ "' exit
 PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 
@@ -17,13 +19,21 @@ echo "Open gridd: $open_gridd"
 
 set -euo pipefail
 
-apt install -y linux-headers-$(uname -r) --no-install-recommends
+install_linux_headers() {
+  apt install -y linux-headers-$(uname -r) --no-install-recommends
+}
+
+use_package_manager_with_retries wait_for_apt_locks install_linux_headers 10 3
 
 # install cached nvidia debian packages for container runtime compatibility
+install_cached_nvidia_packages() {
 for apt_package in $NVIDIA_PACKAGES; do
     dpkg -i --force-overwrite /opt/gpu/${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}*
 done
 dpkg -i --force-overwrite /opt/gpu/nvidia-container-runtime_${NVIDIA_CONTAINER_RUNTIME_VERSION}*
+}
+
+use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packages 10 3
 
 # blacklist nouveau driver, nvidia driver dependency
 cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf
