@@ -7,15 +7,20 @@ and associated libraries on the host, validating their functionality
 
 ## Build
 ```
-docker build -f Dockerfile  -t docker.io/alexeldeib/aks-gpu:latest .
+docker build -f Dockerfile  --build-arg DRIVER_VERSION=??? -t docker.io/alexeldeib/aks-gpu:latest .
 docker push docker.io/alexeldeib/aks-gpu:latest
-```
+``` 
+
+#### DRIVER_VERSION has to be one of:
+- 470.82.01
+- 510.47.03
+- 515.65.01
 
 ## Run
 ```bash
 mkdir -p /opt/{actions,gpu}
 ctr image pull docker.io/alexeldeib/aks-gpu:latest
-ctr run --privileged --net-host --with-ns pid:/proc/1/ns/pid --mount type=bind,src=/opt/gpu,dst=/mnt/gpu,options=rbind --mount type=bind,src=/opt/actions,dst=/mnt/actions,options=rbind -t docker.io/alexeldeib/aks-gpu:latest gpuinstall /entrypoint.sh install.sh
+ctr run --privileged --net-host --with-ns pid:/proc/1/ns/pid --mount type=bind,src=/opt/gpu,dst=/mnt/gpu,options=rbind --mount type=bind,src=/opt/actions,dst=/mnt/actions,options=rbind -t docker.io/alexeldeib/aks-gpu:latest gpuinstall /entrypoint.sh install
 ```
 
 or Docker (untested...)
