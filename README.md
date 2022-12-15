@@ -11,7 +11,7 @@ docker build -f Dockerfile  --build-arg DRIVER_VERSION=??? -t docker.io/alexelde
 docker push docker.io/alexeldeib/aks-gpu:latest
 ``` 
 
-#### DRIVER_VERSION has to be one of:
+#### For DRIVER_VERSION, following versions are known to work :
 - 470.82.01
 - 510.47.03
 - 515.65.01
