@@ -12,8 +12,9 @@ WORKDIR /opt/gpu
 COPY 10-nvidia-runtime.toml 10-nvidia-runtime.toml 
 COPY blacklist-nouveau.conf blacklist-nouveau.conf
 COPY fm_run_package_installer.sh fm_run_package_installer.sh
-COPY config.sh config.sh 
+COPY config.sh config.sh
 RUN envsubst < config.sh > config.sh.tmp && mv config.sh.tmp config.sh
+COPY package_manager_helpers.sh package_manager_helpers.sh
 COPY download.sh download.sh 
 RUN bash download.sh
 

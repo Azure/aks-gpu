@@ -2,7 +2,7 @@
 set -euxo pipefail
 
 source /opt/gpu/config.sh
-source /package_manager_helpers.sh
+source /opt/gpu/package_manager_helpers.sh
 
 trap 'PS4="+ "' exit
 PS4='+ $(date -u -I"seconds" | cut -c1-19) '
@@ -32,7 +32,7 @@ for apt_package in $NVIDIA_PACKAGES; do
 done
 dpkg -i --force-overwrite /opt/gpu/nvidia-container-runtime_${NVIDIA_CONTAINER_RUNTIME_VERSION}*
 }
-use_package_manager_avoid_race wait_for_dpkg_locks install_cached_nvidia_packages 10 3
+use_package_manager_avoid_race wait_for_dpkg_lock install_cached_nvidia_packages 10 3
 
 # blacklist nouveau driver, nvidia driver dependency
 cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf

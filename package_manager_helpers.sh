@@ -12,10 +12,6 @@ wait_for_dpkg_lock() {
    done
 }
 
-# TODO - try exit 1 vs return 1, see how behavior changes, see if check: if $2; then works
-# TODO - would be NICE - CI check to add for real vm that runs this
-# TODO - ncv3 vm for testing
-
 use_package_manager_avoid_race() {
   local wait_for_locks=$1
   local install_dependencies=$2
@@ -35,5 +31,3 @@ use_package_manager_avoid_race() {
     fi
   done
 }
-
-use_package_manager_avoid_race wait_for_apt_locks install_nvidia_packages 10 3
