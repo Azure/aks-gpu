@@ -12,7 +12,7 @@ wait_for_dpkg_lock() {
    done
 }
 
-use_package_manager_avoid_race() {
+use_package_manager_with_retries() {
   local wait_for_locks=$1
   local install_dependencies=$2
   local retries=$3
@@ -22,9 +22,7 @@ use_package_manager_avoid_race() {
   for i in $(seq 1 "$3"); do
     $wait_for_locks
     dpkg --configure -a --force-confdef
-    if $install_dependencies; then
-      return
-    fi
+    ($install_dependencies) && break
     if [ "$i" -eq "$retries" ]; then
       return 1
     else sleep "$sleep_duration"

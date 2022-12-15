@@ -23,7 +23,8 @@ install_linux_headers() {
   apt install -y linux-headers-$(uname -r) --no-install-recommends
 }
 
-use_package_manager_avoid_race wait_for_apt_locks install_linux_headers 10 3
+
+use_package_manager_with_retries wait_for_apt_locks install_linux_headers 10 3
 
 # install cached nvidia debian packages for container runtime compatibility
 install_cached_nvidia_packages() {
@@ -32,7 +33,7 @@ for apt_package in $NVIDIA_PACKAGES; do
 done
 dpkg -i --force-overwrite /opt/gpu/nvidia-container-runtime_${NVIDIA_CONTAINER_RUNTIME_VERSION}*
 }
-use_package_manager_avoid_race wait_for_dpkg_lock install_cached_nvidia_packages 10 3
+use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packages 10 3
 
 # blacklist nouveau driver, nvidia driver dependency
 cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf
