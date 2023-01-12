@@ -97,8 +97,6 @@ set -e
 
 # validate that nvidia driver is working
 dkms status
-nvidia-modprobe -u -c0
-nvidia-smi
 
 cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
 

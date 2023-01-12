@@ -4,7 +4,7 @@ FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro} as gpu
 
 RUN apt update && apt install -y curl xz-utils gnupg2 ca-certificates gettext-base --no-install-recommends
 
-ARG DRIVER_VERSION
+ARG DRIVER_VERSION="510.47.03"
 ARG DRIVER_URL
 ARG DRIVER_KIND="cuda"
 
