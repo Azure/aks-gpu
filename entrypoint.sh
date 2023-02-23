@@ -7,6 +7,10 @@ set -x
 
 sleep="${2:-}"
 
+# clean up any existing gpu files
+# can happen if using a different version than cached
+rm -r /mnt/gpu/*
+
 if [[ -z "${1}" ]]; then
     echo "Must provide a non-empty action as first argument"
     exit 1
