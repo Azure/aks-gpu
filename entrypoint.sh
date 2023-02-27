@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -o errexit
 set -o pipefail
 set -o nounset
 
@@ -9,8 +8,9 @@ sleep="${2:-}"
 
 # clean up any existing gpu files
 # can happen if using a different version than cached
-rm -r /mnt/gpu/*
+rm -r /mnt/gpu/* || true
 
+set -o errexit
 if [[ -z "${1}" ]]; then
     echo "Must provide a non-empty action as first argument"
     exit 1
