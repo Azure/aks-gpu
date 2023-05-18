@@ -4,28 +4,38 @@ set -euo pipefail
 source /etc/os-release
 source /opt/gpu/config.sh
 
+DISTRO="${ID}$(echo ${VERSION_ID} | tr -d .)"
+echo "DISTRO: ${DISTRO}"
+
 workdir="$(mktemp -d)"
 pushd "$workdir" || exit
 
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
-    curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run 
+    wget https://developer.download.nvidia.com/compute/cuda/repos/${DISTRO}/x86_64/cuda-${DISTRO}-keyring.gpg
+    mv cuda-${DISTRO}-keyring.gpg /usr/share/keyrings/cuda-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/${DISTRO}/x86_64/ /" > /etc/apt/sources.list.d/cuda-${DISTRO}-x86_64.list
+    wget https://developer.download.nvidia.com/compute/cuda/repos/${DISTRO}/x86_64/cuda-${DISTRO}.pin
+    mv cuda-${DISTRO}.pin /etc/apt/preferences.d/cuda-repository-pin-600
+    apt-get update
+
+    for apt_package in $NVIDIA_DRIVER_PACKAGES; do
+        apt-get download ${apt_package}=${DRIVER_VERSION}*
+        mv ${apt_package}_${DRIVER_VERSION}* /opt/gpu
+    done
 elif [[ "${DRIVER_KIND}" == "grid" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
     curl -fsSLO "${DRIVER_URL}"
+    # download nvidia drivers, move to permanent cache
+    mv ${RUNFILE}.run /opt/gpu/${RUNFILE}.run
+    pushd /opt/gpu
+    # extract runfile, takes some time, so do ahead of time
+    sh /opt/gpu/${RUNFILE}.run -x
+    rm /opt/gpu/${RUNFILE}.run
+    popd
 else
     echo "Invalid driver kind: ${DRIVER_KIND}"
     exit 1
 fi
-
-# download nvidia drivers, move to permanent cache
-mv ${RUNFILE}.run /opt/gpu/${RUNFILE}.run
-pushd /opt/gpu
-# extract runfile, takes some time, so do ahead of time
-sh /opt/gpu/${RUNFILE}.run -x
-rm /opt/gpu/${RUNFILE}.run
-popd
-
 
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
     # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.

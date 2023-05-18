@@ -27,10 +27,10 @@ use_package_manager_with_retries wait_for_apt_locks install_linux_headers 10 3
 
 # install cached nvidia debian packages for container runtime compatibility
 install_cached_nvidia_packages() {
-for apt_package in $NVIDIA_PACKAGES; do
-    dpkg -i --force-overwrite /opt/gpu/${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}*
-done
-dpkg -i --force-overwrite /opt/gpu/nvidia-container-runtime_${NVIDIA_CONTAINER_RUNTIME_VERSION}*
+    for apt_package in $NVIDIA_PACKAGES; do
+        dpkg -i --force-overwrite /opt/gpu/${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}*
+    done
+    dpkg -i --force-overwrite /opt/gpu/nvidia-container-runtime_${NVIDIA_CONTAINER_RUNTIME_VERSION}*
 }
 
 use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packages 10 3
@@ -55,18 +55,21 @@ mkdir -p ${GPU_DEST}/lib64
 mount -t overlay overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir /usr/lib/x86_64-linux-gnu
 
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
+    for apt_package in $NVIDIA_DRIVER_PACKAGES; do
+        dpkg -i --force-overwrite /opt/gpu/${apt_package}_${DRIVER_VERSION}*
+    done
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
 elif [[ "${DRIVER_KIND}" == "grid" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
+    
+    # install nvidia drivers
+    pushd /opt/gpu
+    /opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
+    popd
 else
     echo "Invalid driver kind: ${DRIVER_KIND}"
     exit 1
 fi
-
-# install nvidia drivers
-pushd /opt/gpu
-/opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
-popd
 
 # move nvidia libs to correct location from temporary overlayfs
 cp -a /tmp/overlay/lib64 ${GPU_DEST}/lib64
@@ -107,7 +110,7 @@ nvidia-modprobe -u -c0
 cp /opt/gpu/nvidia-persistenced.service /etc/systemd/system/nvidia-persistenced.service
 systemctl enable nvidia-persistenced.service
 systemctl restart nvidia-persistenced.service
-nvidia-smi
+/usr/bin/time nvidia-smi
 
 cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
 

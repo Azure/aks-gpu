@@ -2,7 +2,7 @@ ARG distro=18.04
 
 FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro} as gpu
 
-RUN apt update && apt install -y curl xz-utils gnupg2 ca-certificates gettext-base --no-install-recommends
+RUN apt update && apt install -y curl wget xz-utils gnupg2 ca-certificates gettext-base --no-install-recommends
 
 ARG DRIVER_VERSION
 ARG DRIVER_URL
