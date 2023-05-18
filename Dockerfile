@@ -11,6 +11,8 @@ ARG DRIVER_KIND="cuda"
 WORKDIR /opt/gpu
 COPY 10-nvidia-runtime.toml 10-nvidia-runtime.toml 
 COPY blacklist-nouveau.conf blacklist-nouveau.conf
+COPY nvidia-persistenced.service nvidia-persistenced.service
+
 COPY fm_run_package_installer.sh fm_run_package_installer.sh
 COPY config.sh config.sh
 RUN envsubst < config.sh > config.sh.tmp && mv config.sh.tmp config.sh

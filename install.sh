@@ -98,6 +98,15 @@ set -e
 # validate that nvidia driver is working
 dkms status
 nvidia-modprobe -u -c0
+
+# configure persistence daemon
+# decreases latency for later driver loads
+# reduces nvidia-smi invocation time 10x from 30 to 2 sec 
+# notable on large VM sizes with multiple GPUs
+# especially when nvidia-smi process is in CPU cgroup
+cp /opt/gpu/nvidia-persistenced.service /etc/systemd/system/nvidia-persistenced.service
+systemctl enable nvidia-persistenced.service
+systemctl restart nvidia-persistenced.service
 nvidia-smi
 
 cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
