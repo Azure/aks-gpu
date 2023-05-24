@@ -9,7 +9,8 @@ pushd "$workdir" || exit
 
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
-    curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run 
+    # curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run
+    curl -fsSLO https://us.download.nvidia.com/tesla/525.105.17/NVIDIA-Linux-x86_64-525.105.17.run
 elif [[ "${DRIVER_KIND}" == "grid" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
     curl -fsSLO "${DRIVER_URL}"
@@ -27,13 +28,14 @@ rm /opt/gpu/${RUNFILE}.run
 popd
 
 
-if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
-    curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
-    tar -xvf fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
-    mv fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}
-    mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
-fi
+#if [[ "${DRIVER_KIND}" == "cuda" ]]; then
+#    # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
+#    DRIVER_VERSION="530.30.02"
+#    curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
+#    tar -xvf fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
+#    mv fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}
+#    mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+#fi
 
 # configure nvidia apt repo to cache packages
 curl -fsSLO https://nvidia.github.io/nvidia-docker/gpgkey
