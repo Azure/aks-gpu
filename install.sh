@@ -119,4 +119,8 @@ fi
 mkdir -p /etc/containerd/config.d
 cp /opt/gpu/10-nvidia-runtime.toml /etc/containerd/config.d/10-nvidia-runtime.toml
 
+mkdir -p "$(dirname /lib/udev/rules.d/71-nvidia-dev-char.rules)"
+cp /opt/gpu/71-nvidia-char-dev.rules /lib/udev/rules.d/71-nvidia-dev-char.rules
+/usr/bin/nvidia-ctk system create-dev-char-symlinks --create-all
+
 rm -r /opt/gpu
