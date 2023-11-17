@@ -125,3 +125,43 @@ jobs:
         run: |
           rm -r /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+  grid535:
+      runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          driver_version: ["535.54.03"]
+          driver_kind: ["grid"]
+          driver_url: ["https://download.microsoft.com/download/2/e/8/2e85b622-d376-4166-be95-38fd60f18eda/NVIDIA-Linux-x86_64-535.54.03-grid-azure.run"]
+      steps:
+        - uses: actions/checkout@v2
+          with:
+            fetch-depth: 0
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@v1
+        - name: Cache Docker layers
+          uses: actions/cache@v2
+          with:
+            path: /tmp/.buildx-cache
+            key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ matrix.driver_version }}-${{ github.sha }}
+            restore-keys: |
+              ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ matrix.driver_version }}
+        - uses: paulhatch/semantic-version@v5.0.0-alpha2
+          with:
+            bump_each_commit: false
+            version_format: "${{ matrix.driver_kind}}-${{ matrix.driver_version }}-sha-${GITHUB_SHA:0:6}"
+          id: semver
+        - name: 'Check version'
+          run: |
+            echo "version is ${{ steps.semver.outputs.version }}"
+            echo "version is ${{ steps.semver.outputs.version_tag }}"
+        - name: 'Build and Push'
+          run: |
+            set -x
+            echo "tag is: "
+            echo ${{ steps.semver.outputs.version }}
+            docker buildx build --build-arg DRIVER_URL=${{ matrix.driver_url }} --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
+            docker images
+        - name: Move cache
+          run: |
+            rm -r /tmp/.buildx-cache
+            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
