@@ -96,7 +96,7 @@ ldconfig
 
 # unmount, cleanup
 set +e
-umount -l /usr/lib/x86_64-linux-gnujn j     gh
+umount -l /usr/lib/x86_64-linux-gnu
 umount /tmp/overlay
 rm -r /tmp/overlay
 set -e
@@ -110,8 +110,11 @@ nvidia-modprobe -u -c0
 # reduces nvidia-smi invocation time 10x from 30 to 2 sec 
 # notable on large VM sizes with multiple GPUs
 # especially when nvidia-smi process is in CPU cgroup
-cp /opt/gpu/nvidia-persistenced.service /etc/systemd/system/nvidia-persistenced.service
-systemctl enable nvidia-persistenced.service
+if [[ "${DRIVER_KIND}" == "grid" ]]; then
+    cp /opt/gpu/nvidia-persistenced.service /etc/systemd/system/nvidia-persistenced.service
+    systemctl enable nvidia-persistenced.service
+fi
+# ubuntu nvidia driver package contains nvidia-persistenced.service and starts it upon install using systemd
 systemctl restart nvidia-persistenced.service
 nvidia-smi
 
