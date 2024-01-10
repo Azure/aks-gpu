@@ -14,7 +14,7 @@ COPY 71-nvidia-char-dev.rules 71-nvidia-char-dev.rules
 COPY blacklist-nouveau.conf blacklist-nouveau.conf
 COPY nvidia-persistenced.service nvidia-persistenced.service
 
-COPY fm_run_package_installer.sh fm_run_package_installer.sh
+# COPY fm_run_package_installer.sh fm_run_package_installer.sh
 COPY config.sh config.sh
 RUN envsubst < config.sh > config.sh.tmp && mv config.sh.tmp config.sh
 COPY package_manager_helpers.sh package_manager_helpers.sh

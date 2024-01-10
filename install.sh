@@ -3,7 +3,7 @@ set -euxo pipefail
 
 source /opt/gpu/config.sh
 source /opt/gpu/package_manager_helpers.sh
-
+ 
 trap 'PS4="+ "' exit
 PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 
@@ -18,6 +18,8 @@ open_gridd="$(lsof /usr/bin/nvidia-gridd 2>/dev/null)"
 echo "Open gridd: $open_gridd"
 
 set -euo pipefail
+
+apt update
 
 install_linux_headers() {
   apt install -y linux-headers-$(uname -r) --no-install-recommends
@@ -54,19 +56,23 @@ mkdir /tmp/overlay/{workdir,lib64}
 mkdir -p ${GPU_DEST}/lib64
 mount -t overlay overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir /usr/lib/x86_64-linux-gnu
 
+# install nvidia drivers
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
+    # install nvidia debian packages for cuda drivers
+    apt install -y nvidia-modprobe
+    apt install -y linux-modules-nvidia-${DRIVER_MAJOR_VERSION}-$(uname -r)
+    apt install -y nvidia-driver-${DRIVER_MAJOR_VERSION}
+    # continue
 elif [[ "${DRIVER_KIND}" == "grid" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
+    pushd /opt/gpu
+    /opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
+    popd
 else
     echo "Invalid driver kind: ${DRIVER_KIND}"
     exit 1
 fi
 
-# install nvidia drivers
-pushd /opt/gpu
-/opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
-popd
 
 # move nvidia libs to correct location from temporary overlayfs
 cp -a /tmp/overlay/lib64 ${GPU_DEST}/lib64
@@ -90,7 +96,7 @@ ldconfig
 
 # unmount, cleanup
 set +e
-umount -l /usr/lib/x86_64-linux-gnu
+umount -l /usr/lib/x86_64-linux-gnujn j     gh
 umount /tmp/overlay
 rm -r /tmp/overlay
 set -e
@@ -113,7 +119,8 @@ cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
 
 # install fabricmanager for nvlink based systems
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    bash /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+    apt-get install -y nvidia-fabricmanager-${DRIVER_MAJOR_VERSION}
+    # bash /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 fi
 
 mkdir -p /etc/containerd/config.d

@@ -7,32 +7,20 @@ source /opt/gpu/config.sh
 workdir="$(mktemp -d)"
 pushd "$workdir" || exit
 
-if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
-    curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run 
-elif [[ "${DRIVER_KIND}" == "grid" ]]; then
+
+if [[ "${DRIVER_KIND}" == "grid" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
     curl -fsSLO "${DRIVER_URL}"
-else
+    # download nvidia drivers, move to permanent cache
+    mv ${RUNFILE}.run /opt/gpu/${RUNFILE}.run
+    pushd /opt/gpu
+    # extract runfile, takes some time, so do ahead of time
+    sh /opt/gpu/${RUNFILE}.run -x
+    rm /opt/gpu/${RUNFILE}.run
+    popd
+elif  [[ "${DRIVER_KIND}" != "cuda" ]]; then
     echo "Invalid driver kind: ${DRIVER_KIND}"
     exit 1
-fi
-
-# download nvidia drivers, move to permanent cache
-mv ${RUNFILE}.run /opt/gpu/${RUNFILE}.run
-pushd /opt/gpu
-# extract runfile, takes some time, so do ahead of time
-sh /opt/gpu/${RUNFILE}.run -x
-rm /opt/gpu/${RUNFILE}.run
-popd
-
-
-if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
-    curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
-    tar -xvf fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
-    mv fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}
-    mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 fi
 
 # configure nvidia apt repo to cache packages
@@ -42,6 +30,7 @@ mv aptnvidia.gpg /etc/apt/trusted.gpg.d/aptnvidia.gpg
 curl -fsSL https://nvidia.github.io/nvidia-docker/ubuntu${VERSION_ID}/nvidia-docker.list -o /etc/apt/sources.list.d/nvidia-docker.list
 
 apt update
+
 
 # download nvidia debian packages for nvidia-container-runtime compat
 for apt_package in $NVIDIA_PACKAGES; do
