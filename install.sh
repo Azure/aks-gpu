@@ -50,11 +50,11 @@ set -e
 
 # set up overlayfs to change install location of nvidia libs from /usr/lib/x86_64-linux-gnu to /usr/local/nvidia
 # add an extra layer of indirection via tmpfs because it's not possible to have an overlayfs on an overlayfs (i.e., inside a container)
-mkdir /tmp/overlay
-mount -t tmpfs tmpfs /tmp/overlay
-mkdir /tmp/overlay/{workdir,lib64}
-mkdir -p ${GPU_DEST}/lib64
-mount -t overlay overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir /usr/lib/x86_64-linux-gnu
+# mkdir /tmp/overlay
+# mount -t tmpfs tmpfs /tmp/overlay
+# mkdir /tmp/overlay/{workdir,lib64}
+# mkdir -p ${GPU_DEST}/lib64
+# mount -t overlay overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir /usr/lib/x86_64-linux-gnu
 
 # install nvidia drivers
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
@@ -75,7 +75,7 @@ fi
 
 
 # move nvidia libs to correct location from temporary overlayfs
-cp -a /tmp/overlay/lib64 ${GPU_DEST}/lib64
+# cp -a /tmp/overlay/lib64 ${GPU_DEST}/lib64
 
 # grid starts a daemon that prevents copying binaries
 if [ "${DRIVER_KIND}" == "grid" ]; then
@@ -91,15 +91,16 @@ if [ "${DRIVER_KIND}" == "grid" ]; then
 fi
 
 # configure system to know about nvidia lib paths
-echo "${GPU_DEST}/lib64" > /etc/ld.so.conf.d/nvidia.conf
+# echo "${GPU_DEST}/lib64" > /etc/ld.so.conf.d/nvidia.conf
+echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/nvidia.conf
 ldconfig 
 
 # unmount, cleanup
-set +e
-umount -l /usr/lib/x86_64-linux-gnu
-umount /tmp/overlay
-rm -r /tmp/overlay
-set -e
+# set +e
+# # umount -l /usr/lib/x86_64-linux-gnu
+# umount /tmp/overlay
+# rm -r /tmp/overlay
+# set -e
 
 # validate that nvidia driver is working
 dkms status
@@ -110,12 +111,9 @@ nvidia-modprobe -u -c0
 # reduces nvidia-smi invocation time 10x from 30 to 2 sec 
 # notable on large VM sizes with multiple GPUs
 # especially when nvidia-smi process is in CPU cgroup
-if [[ "${DRIVER_KIND}" == "grid" ]]; then
-    cp /opt/gpu/nvidia-persistenced.service /etc/systemd/system/nvidia-persistenced.service
-    systemctl enable nvidia-persistenced.service
-fi
-# ubuntu nvidia driver package contains nvidia-persistenced.service and starts it upon install using systemd
-systemctl restart nvidia-persistenced.service
+# cp /opt/gpu/nvidia-persistenced.service /etc/systemd/system/nvidia-persistenced.service
+# systemctl enable nvidia-persistenced.service
+# systemctl restart nvidia-persistenced.service
 nvidia-smi
 
 cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
