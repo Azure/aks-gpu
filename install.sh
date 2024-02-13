@@ -19,10 +19,6 @@ echo "Open gridd: $open_gridd"
 
 set -euo pipefail
 
-install_linux_headers() {
-  apt install -y linux-headers-$(uname -r) --no-install-recommends
-}
-
 use_package_manager_with_retries wait_for_apt_locks install_linux_headers 10 3
 
 # install cached nvidia debian packages for container runtime compatibility
