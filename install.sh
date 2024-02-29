@@ -19,8 +19,6 @@ echo "Open gridd: $open_gridd"
 
 set -euo pipefail
 
-use_package_manager_with_retries wait_for_apt_locks 10 3
-
 # install cached nvidia debian packages for container runtime compatibility
 install_cached_nvidia_packages() {
 for apt_package in $NVIDIA_PACKAGES; do
