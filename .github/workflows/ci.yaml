@@ -129,9 +129,9 @@ jobs:
       runs-on: ubuntu-latest
       strategy:
         matrix:
-          driver_version: ["535.54.03"]
+          driver_version: ["535.154.05"]
           driver_kind: ["grid"]
-          driver_url: ["https://download.microsoft.com/download/2/e/8/2e85b622-d376-4166-be95-38fd60f18eda/NVIDIA-Linux-x86_64-535.54.03-grid-azure.run"]
+          driver_url: ["https://download.microsoft.com/download/1/4/4/14450d0e-a3f2-4b0a-9bb4-a8e729e986c4/NVIDIA-Linux-x86_64-535.154.05-grid-azure.run"]
       steps:
         - uses: actions/checkout@v2
           with:
