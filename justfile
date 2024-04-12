@@ -1,6 +1,6 @@
 grid_470_url    := "https://download.microsoft.com/download/a/3/c/a3c078a0-e182-4b61-ac9b-ac011dc6ccf4/NVIDIA-Linux-x86_64-470.82.01-grid-azure.run"
 grid_510_url    := "https://download.microsoft.com/download/6/2/5/625e22a0-34ea-4d03-8738-a639acebc15e/NVIDIA-Linux-x86_64-510.73.08-grid-azure.run"
-grid_535_url    := "https://download.microsoft.com/download/2/e/8/2e85b622-d376-4166-be95-38fd60f18eda/NVIDIA-Linux-x86_64-535.54.03-grid-azure.run"
+grid_535_url    := "https://download.microsoft.com/download/2/e/8/2e85b622-d376-4166-be95-38fd60f18eda/NVIDIA-Linux-x86_64-535.154.05-grid-azure.run"
 
 grid_535_driver := "535.54.03"
 grid_510_driver := "510.73.08" 
@@ -9,7 +9,7 @@ grid_470_driver := "470.82.01"
 cuda_510_driver := "510.47.03"
 cuda_470_driver := "470.82.01"
 cuda_515_driver := "515.65.01"
-cuda_535_driver := "535.54.03"
+cuda_535_driver := "535.154.05"
 registry := "docker.io/alexeldeib"
 
 default:
