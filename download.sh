@@ -27,15 +27,8 @@ rm /opt/gpu/${RUNFILE}.run
 popd
 
 
-if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
-   install_fabric_manager
-fi
-
 install_fabric_manager () {
-
     local driver_ver="${DRIVER_VERSION}"
-
     if [[ "${DRIVER_VERSION}" == "535.161.08" ]]; then
       local driver_ver="535.104.05"
       # Temporary as latest fabric manager version here is not the same as the driver version. https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/
@@ -43,11 +36,17 @@ install_fabric_manager () {
     else
       curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${DRIVER_VERSION}-archive.tar.xz
     fi
-
     tar -xvf fabricmanager-linux-x86_64-${driver_ver}-archive.tar.xz
     mv fabricmanager-linux-x86_64-${driver_ver}-archive /opt/gpu/fabricmanager-linux-x86_64-${driver_ver}
     mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-x86_64-${driver_ver}/sbin/fm_run_package_installer.sh
 }
+
+if [[ "${DRIVER_KIND}" == "cuda" ]]; then
+    # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
+   install_fabric_manager
+fi
+
+
 
 # configure nvidia apt repo to cache packages
 curl -fsSLO https://nvidia.github.io/nvidia-docker/gpgkey
