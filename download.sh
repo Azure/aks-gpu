@@ -47,7 +47,6 @@ if [[ "${DRIVER_KIND}" == "cuda" ]]; then
 fi
 
 
-
 # configure nvidia apt repo to cache packages
 curl -fsSLO https://nvidia.github.io/nvidia-docker/gpgkey
 gpg --dearmor -o aptnvidia.gpg gpgkey
