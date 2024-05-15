@@ -10,10 +10,7 @@ cuda_510_driver := "510.47.03"
 cuda_470_driver := "470.82.01"
 cuda_515_driver := "515.65.01"
 cuda_535_driver := "535.161.08"
-<<<<<<< HEAD
-=======
 cuda_550_driver := "550.54.15"
->>>>>>> a42cad3aee5ddaccd7dcf1e7ce1a8d958960c7b7
 registry := "docker.io/alexeldeib"
 
 default:
