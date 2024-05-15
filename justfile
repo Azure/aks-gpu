@@ -9,12 +9,13 @@ grid_470_driver := "470.82.01"
 cuda_510_driver := "510.47.03"
 cuda_470_driver := "470.82.01"
 cuda_515_driver := "515.65.01"
-cuda_535_driver := "535.154.05"
+cuda_535_driver := "535.161.08"
+cuda_550_driver := "550.54.15"
 registry := "docker.io/alexeldeib"
 
 default:
 
-pushallcuda: (pushcuda cuda_535_driver) (pushcuda cuda_515_driver) (pushcuda cuda_510_driver) (pushcuda cuda_470_driver) 
+pushallcuda: (pushcuda cuda_550_driver) (pushcuda cuda_535_driver) (pushcuda cuda_515_driver) (pushcuda cuda_510_driver) (pushcuda cuda_470_driver) 
 
 pushallgrid: (pushgrid grid_510_driver grid_510_url grid_535_driver) #(pushgrid grid_470_driver grid_470_url)
 
