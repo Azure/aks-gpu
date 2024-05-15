@@ -32,10 +32,10 @@ install_fabric_manager () {
     if [[ "${DRIVER_VERSION}" == "535.161.08" ]]; then
       FABRIC_MANAGER_VERSION="535.104.05"
       # TODO Temporary as latest fabric manager version here is not the same as the driver version. https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/
-      curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${FABRIC_MANAGER_VERSION}-archive.tar.xz
-    else
-      curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${FABRIC_MANAGER_VERSION}-archive.tar.xz
     fi
+
+    curl -fsSLO https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/fabricmanager-linux-x86_64-${FABRIC_MANAGER_VERSION}-archive.tar.xz
+
     tar -xvf fabricmanager-linux-x86_64-${FABRIC_MANAGER_VERSION}-archive.tar.xz
     mv fabricmanager-linux-x86_64-${FABRIC_MANAGER_VERSION}-archive /opt/gpu/fabricmanager-linux-x86_64-${FABRIC_MANAGER_VERSION}
     mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-x86_64-${FABRIC_MANAGER_VERSION}/sbin/fm_run_package_installer.sh
