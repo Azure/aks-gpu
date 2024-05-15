@@ -107,8 +107,15 @@ cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
 
 # install fabricmanager for nvlink based systems
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    bash /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+
+    FABRIC_MANAGER_VERSION="${DRIVER_VERSION}"
+    if [[ "${DRIVER_VERSION}" == "535.161.08" ]]; then
+      FABRIC_MANAGER_VERSION="535.104.05"
+      # TODO Temporary as latest fabric manager version here is not the same as the driver version. https://developer.download.nvidia.com/compute/cuda/redist/fabricmanager/linux-x86_64/
+    fi
+    bash /opt/gpu/fabricmanager-linux-x86_64-${FABRIC_MANAGER_VERSION}/sbin/fm_run_package_installer.sh
 fi
+
 
 mkdir -p /etc/containerd/config.d
 cp /opt/gpu/10-nvidia-runtime.toml /etc/containerd/config.d/10-nvidia-runtime.toml
