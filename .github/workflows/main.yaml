@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        driver_version: ["470.82.01", "510.47.03", "515.65.01", "525.85.12", "535.54.03", "535.161.08", "550.54.15"]
+        driver_version: ["470.82.01", "510.47.03", "515.65.01", "525.85.12", "535.54.03", "550.54.15"]
         driver_kind: ["cuda"]
     steps:
       - uses: actions/checkout@v2
