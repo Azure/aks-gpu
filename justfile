@@ -2,7 +2,7 @@ grid_470_url    := "https://download.microsoft.com/download/a/3/c/a3c078a0-e182-
 grid_510_url    := "https://download.microsoft.com/download/6/2/5/625e22a0-34ea-4d03-8738-a639acebc15e/NVIDIA-Linux-x86_64-510.73.08-grid-azure.run"
 grid_535_url    := "https://download.microsoft.com/download/1/4/4/14450d0e-a3f2-4b0a-9bb4-a8e729e986c4/NVIDIA-Linux-x86_64-535.154.05-grid-azure.run"
 
-grid_535_driver := "535.54.03"
+grid_535_driver := "535.154.05"
 grid_510_driver := "510.73.08" 
 grid_470_driver := "470.82.01" 
 
