@@ -24,7 +24,6 @@ install_cached_nvidia_packages() {
 for apt_package in $NVIDIA_PACKAGES; do
     dpkg -i --force-overwrite /opt/gpu/${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}*
 done
-dpkg -i --force-overwrite /opt/gpu/nvidia-container-runtime_${NVIDIA_CONTAINER_RUNTIME_VERSION}*
 }
 
 use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packages 10 3
@@ -80,7 +79,7 @@ fi
 
 # configure system to know about nvidia lib paths
 echo "${GPU_DEST}/lib64" > /etc/ld.so.conf.d/nvidia.conf
-ldconfig 
+ldconfig
 
 # unmount, cleanup
 set +e
@@ -95,15 +94,13 @@ nvidia-modprobe -u -c0
 
 # configure persistence daemon
 # decreases latency for later driver loads
-# reduces nvidia-smi invocation time 10x from 30 to 2 sec 
+# reduces nvidia-smi invocation time 10x from 30 to 2 sec
 # notable on large VM sizes with multiple GPUs
 # especially when nvidia-smi process is in CPU cgroup
 cp /opt/gpu/nvidia-persistenced.service /etc/systemd/system/nvidia-persistenced.service
 systemctl enable nvidia-persistenced.service
 systemctl restart nvidia-persistenced.service
 nvidia-smi
-
-cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
 
 # install fabricmanager for nvlink based systems
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
