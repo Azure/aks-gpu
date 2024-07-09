@@ -7,7 +7,7 @@ grid_510_driver := "510.73.08"
 grid_470_driver := "470.82.01" 
 
 cuda_535_driver := "535.161.08"
-cuda_550_driver := "550.54.15"
+cuda_550_driver := "550.90.07"
 registry := "docker.io/alexeldeib"
 
 default:
