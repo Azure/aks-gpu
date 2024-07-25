@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        driver_version: ["535.161.08", "550.90.07"]
+        driver_version: ["550.90.07"]
         driver_kind: ["cuda"]
     steps:
       - uses: actions/checkout@v2
@@ -49,102 +49,6 @@ jobs:
           echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
           docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
-          docker images
-          az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
-          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }}
-      - name: Move cache
-        run: |
-          rm -r /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-  grid470:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        driver_version: ["470.82.01"]
-        driver_kind: ["grid"]
-        driver_url: ["https://download.microsoft.com/download/a/3/c/a3c078a0-e182-4b61-ac9b-ac011dc6ccf4/NVIDIA-Linux-x86_64-470.82.01-grid-azure.run"]
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ matrix.driver_version }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ matrix.driver_version }}
-      - uses: paulhatch/semantic-version@v5.0.0-alpha2
-        with:
-          bump_each_commit: false
-          version_format: "${{ matrix.driver_kind}}-${{ matrix.driver_version }}-sha-${GITHUB_SHA:0:6}"
-        id: semver
-      - name: 'Check version'
-        run: |
-          echo "version is ${{ steps.semver.outputs.version }}"
-          echo "version is ${{ steps.semver.outputs.version_tag }}"
-      - name: 'Azure CLI login'
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: 'Build and Push'
-        run: |
-          set -x
-          echo "tag is: "
-          echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_URL=${{ matrix.driver_url }} --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
-          docker images
-          az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
-          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }}
-      - name: Move cache
-        run: |
-          rm -r /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-  grid510:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        driver_version: ["510.73.08"]
-        driver_kind: ["grid"]
-        driver_url: ["https://download.microsoft.com/download/6/2/5/625e22a0-34ea-4d03-8738-a639acebc15e/NVIDIA-Linux-x86_64-510.73.08-grid-azure.run"]
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ matrix.driver_version }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ matrix.driver_version }}
-      - uses: paulhatch/semantic-version@v5.0.0-alpha2
-        with:
-          bump_each_commit: false
-          version_format: "${{ matrix.driver_kind}}-${{ matrix.driver_version }}-sha-${GITHUB_SHA:0:6}"
-        id: semver
-      - name: 'Check version'
-        run: |
-          echo "version is ${{ steps.semver.outputs.version }}"
-          echo "version is ${{ steps.semver.outputs.version_tag }}"
-      - name: 'Azure CLI login'
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: 'Build and Push'
-        run: |
-          set -x
-          echo "tag is: "
-          echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_URL=${{ matrix.driver_url }} --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
           docker images
           az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
           docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }}
