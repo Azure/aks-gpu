@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euox pipefail
 
 source /etc/os-release
 source /opt/gpu/config.sh
@@ -46,7 +46,9 @@ gpg --dearmor -o aptnvidia.gpg gpgkey
 mv aptnvidia.gpg /etc/apt/trusted.gpg.d/aptnvidia.gpg
 curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list -o /etc/apt/sources.list.d/nvidia-container-toolkit.list
 
-apt update
+apt-get update
+chmod 644 /etc/apt/trusted.gpg.d/*
+
 
 for apt_package in $NVIDIA_PACKAGES; do
     apt-get download ${apt_package}=${NVIDIA_CONTAINER_TOOLKIT_VER}*
