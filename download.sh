@@ -48,7 +48,18 @@ curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-contai
 
 apt update
 
+for apt_package in $NVIDIA_PACKAGES; do
+    apt-get download ${apt_package}=${NVIDIA_CONTAINER_TOOLKIT_VER}*
+    mv ${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}* /opt/gpu
+done
+
 # download nvidia debian packages for nvidia-container-runtime compat
+
+for apt_package in $LIBNVIDIA_PACKAGES; do
+    apt-get download ${apt_package}=${LIBNVIDIA_VER}*
+    mv ${apt_package}_${LIBNVIDIA_VER}* /opt/gpu
+done
+
 for apt_package in $NVIDIA_PACKAGES; do
     apt-get download ${apt_package}=${NVIDIA_CONTAINER_TOOLKIT_VER}*
     mv ${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}* /opt/gpu
