@@ -56,27 +56,10 @@ for apt_package in $NVIDIA_PACKAGES; do
 done
 
 # download nvidia debian packages for nvidia-container-runtime compat
-
-for apt_package in $LIBNVIDIA_PACKAGES; do
-    apt-get download ${apt_package}=${LIBNVIDIA_VER}*
-    mv ${apt_package}_${LIBNVIDIA_VER}* /opt/gpu
-done
-
 for apt_package in $NVIDIA_PACKAGES; do
     apt-get download ${apt_package}=${NVIDIA_CONTAINER_TOOLKIT_VER}*
     mv ${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}* /opt/gpu
 done
-#apt-get download nvidia-container-runtime=${NVIDIA_CONTAINER_RUNTIME_VERSION}*
-
-# move debs to permanent cache
-#mv nvidia-container-runtime_${NVIDIA_CONTAINER_RUNTIME_VERSION}* /opt/gpu
-
-# nvidia-docker2 for docker runtime
-# apt-get download nvidia-docker2=${NVIDIA_DOCKER_VERSION}
-# mkdir -p /tmp/nvidia-docker2
-# dpkg-deb -R ./nvidia-docker2_${NVIDIA_DOCKER_VERSION}_all.deb /tmp/nvidia-docker2
-# mkdir -p /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}
-# cp -r /tmp/nvidia-docker2/usr/* /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/
 
 popd || exit
 rm -r "$workdir"
