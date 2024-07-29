@@ -24,7 +24,6 @@ install_cached_nvidia_packages() {
 for apt_package in $NVIDIA_PACKAGES; do
     dpkg -i --force-overwrite /opt/gpu/${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}*
 done
-dpkg -i --force-overwrite /opt/gpu/nvidia-container-runtime_${NVIDIA_CONTAINER_RUNTIME_VERSION}*
 }
 
 use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packages 10 3
@@ -102,8 +101,6 @@ cp /opt/gpu/nvidia-persistenced.service /etc/systemd/system/nvidia-persistenced.
 systemctl enable nvidia-persistenced.service
 systemctl restart nvidia-persistenced.service
 nvidia-smi
-
-cp -r  /opt/gpu/nvidia-docker2_${NVIDIA_DOCKER_VERSION}/* /usr/
 
 # install fabricmanager for nvlink based systems
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
