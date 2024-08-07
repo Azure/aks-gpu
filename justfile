@@ -4,7 +4,7 @@ default:
 
 pushallcuda: (pushcuda)
 
-pushallgrid: (pushgrid grid_535_driver)
+pushallgrid: (pushgrid)
 
 pushcuda: (buildcuda)
 	docker push {{ registry }}/aks-gpu:$(yq e '.cuda.version' driver_config.yml)-cuda
