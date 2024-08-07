@@ -21,9 +21,15 @@ jobs:
       - name: Load config
         id: set_config
         run: |
-          echo "cuda_version=$(yq e '.cuda.version' driver_config.yml)" >> $GITHUB_OUTPUT
-          echo "grid_version=$(yq e '.grid.version' driver_config.yml)" >> $GITHUB_OUTPUT
-          echo "grid_url=$(yq e '.grid.url' driver_config.yml)" >> $GITHUB_OUTPUT 
+          CUDA_VERSION=$(yq e '.cuda.version' driver_config.yml)
+          GRID_VERSION=$(yq e '.grid.version' driver_config.yml)
+          GRID_URL=$(yq e '.grid.url' driver_config.yml)
+          echo "CUDA_VERSION=$CUDA_VERSION"
+          echo "GRID_VERSION=$GRID_VERSION"
+          echo "GRID_URL=$GRID_URL"
+          echo "::set-output name=cuda_version::$CUDA_VERSION"
+          echo "::set-output name=grid_version::$GRID_VERSION"
+          echo "::set-output name=grid_url::$GRID_URL"
   cuda:
     runs-on: ubuntu-latest
     strategy:
