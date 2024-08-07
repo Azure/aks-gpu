@@ -5,17 +5,22 @@ on:
       - main
   workflow_dispatch: {}
 
-jobs: 
+jobs:
   cuda:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        driver_version: ["550.90.07"]
         driver_kind: ["cuda"]
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Load CUDA config
+        id: load_config
+        run: |
+          cuda_version=$(yq e '.cuda.version' driver_config.yml)
+          echo "CUDA_VERSION=$cuda_version"
+          echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
       - name: Cache Docker layers
@@ -28,7 +33,7 @@ jobs:
       - uses: paulhatch/semantic-version@v5.0.0-alpha2
         with:
           bump_each_commit: false
-          version_format: "${{ matrix.driver_kind}}-${{ matrix.driver_version }}-sha-${GITHUB_SHA:0:6}"
+          version_format: "cuda-${{ steps.load_config.outputs.cuda_version }}-sha-${GITHUB_SHA:0:6}"
         id: semver
       - name: 'Check version'
         run: |
@@ -39,7 +44,7 @@ jobs:
           set -x
           echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
+          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
           docker images
       - name: Move cache
         run: |
@@ -62,9 +67,9 @@ jobs:
           uses: actions/cache@v2
           with:
             path: /tmp/.buildx-cache
-            key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ matrix.driver_version }}-${{ github.sha }}
+            key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.cuda_version }}-${{ github.sha }}
             restore-keys: |
-              ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ matrix.driver_version }}
+              ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.cuda_version }}
         - uses: paulhatch/semantic-version@v5.0.0-alpha2
           with:
             bump_each_commit: false
