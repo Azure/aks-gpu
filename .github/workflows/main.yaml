@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        driver_version: ["550.90.07"]
+        driver_version: ["${{ needs.load_config.outputs.cuda_version }}"]
         driver_kind: ["cuda"]
     steps:
       - uses: actions/checkout@v2
