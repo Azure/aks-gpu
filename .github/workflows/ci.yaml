@@ -50,17 +50,24 @@ jobs:
         run: |
           rm -r /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-  grid535:
+  grid:
       runs-on: ubuntu-latest
       strategy:
         matrix:
-          driver_version: ["535.161.08"]
           driver_kind: ["grid"]
-          driver_url: ["https://download.microsoft.com/download/8/d/a/8da4fb8e-3a9b-4e6a-bc9a-72ff64d7a13c/NVIDIA-Linux-x86_64-535.161.08-grid-azure.run"]
       steps:
         - uses: actions/checkout@v2
           with:
             fetch-depth: 0
+        - name: Load GRID config
+          id: load_config
+          run: |
+              grid_version=$(yq e '.grid.version' driver_config.yml)
+              grid_url=$(yq e '.grid.url' driver_config.yml)
+              echo "GRID_VERSION=$grid_version"
+              echo "GRID_URL=$grid_url"
+              echo "grid_version=$grid_version" >> $GITHUB_OUTPUT
+              echo "grid_url=$grid_url" >> $GITHUB_OUTPUT
         - name: Set up Docker Buildx
           uses: docker/setup-buildx-action@v1
         - name: Cache Docker layers
@@ -73,7 +80,7 @@ jobs:
         - uses: paulhatch/semantic-version@v5.0.0-alpha2
           with:
             bump_each_commit: false
-            version_format: "${{ matrix.driver_kind}}-${{ matrix.driver_version }}-sha-${GITHUB_SHA:0:6}"
+            version_format: "${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}-sha-${GITHUB_SHA:0:6}"
           id: semver
         - name: 'Check version'
           run: |
@@ -84,7 +91,7 @@ jobs:
             set -x
             echo "tag is: "
             echo ${{ steps.semver.outputs.version }}
-            docker buildx build --build-arg DRIVER_URL=${{ matrix.driver_url }} --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
+            docker buildx build --build-arg DRIVER_URL=${{ steps.load_config.outputs.grid_url }} --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.grid_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
             docker images
         - name: Move cache
           run: |
