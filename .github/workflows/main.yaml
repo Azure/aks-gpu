@@ -9,31 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  load_config:
-    runs-on: ubuntu-latest
-    outputs:
-      cuda_version: ${{ steps.set_config.outputs.cuda_version }}
-      grid_version: ${{ steps.set_config.outputs.grid_version }}
-      grid_url: ${{ steps.set_config.outputs.grid_url }}
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod a+x /usr/local/bin/yq
-      - name: Load config
-        id: set_config
-        run: |
-          CUDA_VERSION=$(yq e '.cuda.version' driver_config.yml)
-          GRID_VERSION=$(yq e '.grid.version' driver_config.yml)
-          GRID_URL=$(yq e '.grid.url' driver_config.yml)
-          echo "CUDA_VERSION=$CUDA_VERSION"
-          echo "GRID_VERSION=$GRID_VERSION"
-          echo "GRID_URL=$GRID_URL"
-          echo "::set-output name=cuda_version::$CUDA_VERSION"
-          echo "::set-output name=grid_version::$GRID_VERSION"
-          echo "::set-output name=grid_url::$GRID_URL"
- 
   cuda:
     runs-on: ubuntu-latest
     strategy:
@@ -41,19 +16,12 @@ jobs:
         driver_version: ["${{ needs.load_config.outputs.cuda_version }}"]
         driver_kind: ["cuda"]
     steps:
-      - name: Check CUDA version
+      - name: Load CUDA config
+        id: load_config
         run: |
-          echo "Received CUDA version: ${{ needs.load_config.outputs.cuda_version }}"
-      - name: Build with CUDA version
-        run: |
-          CUDA_VERSION="${{ needs.load_config.outputs.cuda_version }}"
-          if [ -z "$CUDA_VERSION" ]; then
-            echo "Error: CUDA version is empty"
-            exit 1
-          else
-            echo "Building with CUDA version: $CUDA_VERSION"
-            # Your build command here
-          fi      
+          cuda_version=$(yq e '.cuda.version' driver_config.yml)
+          echo "CUDA_VERSION=$cuda_version"
+          echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT      
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -69,7 +37,7 @@ jobs:
       - uses: paulhatch/semantic-version@v5.0.0-alpha2
         with:
           bump_each_commit: false
-          version_format: "${{ matrix.driver_kind}}-${{ matrix.driver_version }}-sha-${GITHUB_SHA:0:6}"
+          version_format: "cuda-${{ steps.load_config.outputs.cuda_version }}-sha-${GITHUB_SHA:0:6}"
         id: semver
       - name: 'Check version'
         run: |
@@ -86,7 +54,7 @@ jobs:
           set -x
           echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
+          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
           docker images
           az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
           docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }}
