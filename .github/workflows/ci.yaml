@@ -44,7 +44,7 @@ jobs:
           set -x
           echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ matrix.driver_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
+          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
           docker images
       - name: Move cache
         run: |
@@ -67,9 +67,9 @@ jobs:
           uses: actions/cache@v2
           with:
             path: /tmp/.buildx-cache
-            key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ matrix.driver_version }}-${{ github.sha }}
+            key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.cuda_version }}-${{ github.sha }}
             restore-keys: |
-              ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ matrix.driver_version }}
+              ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.cuda_version }}
         - uses: paulhatch/semantic-version@v5.0.0-alpha2
           with:
             bump_each_commit: false
