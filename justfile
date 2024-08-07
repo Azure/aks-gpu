@@ -2,7 +2,6 @@ grid_535_url    := "https://download.microsoft.com/download/8/d/a/8da4fb8e-3a9b-
 
 grid_535_driver := "535.161.08"
 
-cuda_550_driver := "550.90.07"
 registry := "docker.io/alexeldeib"
 
 default:

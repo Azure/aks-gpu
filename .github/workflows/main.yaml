@@ -8,7 +8,26 @@ permissions:
   id-token: write
   contents: read
 
-jobs: 
+jobs:
+  load_config:
+    runs-on: ubuntu-latest
+    outputs:
+      cuda_version: ${{ steps.set_config.outputs.cuda_version }}
+      grid_version: ${{ steps.set_config.outputs.grid_version }}
+      grid_url: ${{ steps.set_config.outputs.grid_url }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod a+x /usr/local/bin/yq
+      - name: Load config
+        id: set_config
+        run: |
+          echo "cuda_version=$(yq e '.cuda.version' ../../driver_config.yml)" >> $GITHUB_OUTPUT
+          echo "grid_version=$(yq e '.grid.version' ../../driver_config.yml)" >> $GITHUB_OUTPUT
+          echo "grid_url=$(yq e '.grid.url' ../../driver_config.yml)" >> $GITHUB_OUTPUT
+ 
   cuda:
     runs-on: ubuntu-latest
     strategy:
