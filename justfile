@@ -7,12 +7,12 @@ registry := "docker.io/alexeldeib"
 
 default:
 
-pushallcuda: (pushcuda cuda_550_driver)
+pushallcuda: (pushcuda)
 
 pushallgrid: (pushgrid grid_535_driver)
 
-pushcuda VERSION: (buildcuda VERSION)
-	docker push {{ registry }}/aks-gpu:{{VERSION}}-cuda
+pushcuda: (buildcuda)
+	docker push {{ registry }}/aks-gpu:$(yq e '.cuda.version' driver_config.yml)-cuda
 
 pushgrid VERSION URL: (buildgrid VERSION URL)
 	docker push {{ registry }}/aks-gpu:{{VERSION}}-grid
