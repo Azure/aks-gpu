@@ -16,10 +16,22 @@ jobs:
         driver_version: ["${{ needs.load_config.outputs.cuda_version }}"]
         driver_kind: ["cuda"]
     steps:
+      - name: Debug directory
+        run: |
+          pwd
+          ls -la
+          echo "Github workspace: $GITHUB_WORKSPACE"
       - name: Load CUDA config
         id: load_config
         run: |
-          cuda_version=$(yq e '.cuda.version' driver_config.yml)
+          if [ -f "$GITHUB_WORKSPACE/driver_config.yml" ]; then
+            cuda_version=$(yq e '.cuda.version' "$GITHUB_WORKSPACE/driver_config.yml")
+          elif [ -f "driver_config.yml" ]; then
+            cuda_version=$(yq e '.cuda.version' "driver_config.yml")
+          else
+            echo "driver_config.yml not found"
+            exit 1
+          fi
           echo "CUDA_VERSION=$cuda_version"
           echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT      
       - uses: actions/checkout@v2
