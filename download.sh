@@ -9,7 +9,7 @@ pushd "$workdir" || exit
 
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
-    curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run 
+    curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run
 elif [[ "${DRIVER_KIND}" == "grid" ]]; then
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
     curl -fsSLO "${DRIVER_URL}"
