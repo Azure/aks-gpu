@@ -1,0 +1,43 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "driver_config.yml"
+      ],
+      "matchStrings": [
+        "cuda:\\s*(?:#.*)?\\n\\s*version:\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "depNameTemplate": "nvidia-cuda-driver",
+      "datasourceTemplate": "custom.nvidia-driver",
+      "versioningTemplate": "loose"
+    }
+  ],
+  "customDatasources": {
+  "nvidia-driver": {
+    "defaultRegistryUrlTemplate": "https://docs.nvidia.com/datacenter/tesla/drivers/releases.json",
+    "transformTemplates": [
+      "{ \"releases\": $map($reduce($map($keys($), function($k) { { \"key\": $k, \"value\": $lookup($, $k) } }), function($acc, $v) { $append($acc, $v.value.driver_info) }, []), function($info) { { \"version\": $info.release_version } }) }"
+    ]
+  }
+ },
+  "packageRules": [
+    {
+      "excludePackagePatterns": [".*"],
+      "managers": ["regex"],
+      "matchManagers": ["regex"],
+      "enabled": true
+    }
+  ],
+  "logLevelRemap": [
+    {
+      "matchMessage": "/^Custom manager fetcher/",
+      "newLogLevel": "debug"
+    },
+    {
+      "matchMessage": "/custom datasource/",
+      "newLogLevel": "debug"
+    }
+  ]
+}
