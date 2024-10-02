@@ -45,7 +45,7 @@ jobs:
       - name: 'Build and Push'
         run: |
           set -x
-          echo "tag is: "a
+          echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
           docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda:${{ steps.semver.outputs.version }} .
           docker images
