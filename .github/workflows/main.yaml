@@ -46,7 +46,7 @@ jobs:
           echo "version is ${{ steps.semver.outputs.version }}"
           echo "version is ${{ steps.semver.outputs.version_tag }}"
       - name: 'Azure CLI login'
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -105,7 +105,7 @@ jobs:
           echo "version is ${{ steps.semver.outputs.version }}"
           echo "version is ${{ steps.semver.outputs.version_tag }}"
       - name: 'Azure CLI login'
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
