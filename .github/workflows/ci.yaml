@@ -30,13 +30,10 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
-      - name: Generate timestamp
-        id: timestamp
-        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
       - uses: paulhatch/semantic-version@v5.0.0-alpha2
         with:
           bump_each_commit: false
-          version_format: "${{ steps.load_config.outputs.cuda_version }}-${{ steps.timestamp.outputs.timestamp }}"
+          version_format: "cuda-${{ steps.load_config.outputs.cuda_version }}-sha-${GITHUB_SHA:0:6}"
         id: semver
       - name: 'Check version'
         run: |
@@ -47,7 +44,7 @@ jobs:
           set -x
           echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda:${{ steps.semver.outputs.version }} .
+          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
           docker images
       - name: Move cache
         run: |
@@ -77,16 +74,13 @@ jobs:
           uses: actions/cache@v4
           with:
             path: /tmp/.buildx-cache
-            key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}-${{ github.sha }}
+            key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.cuda_version }}-${{ github.sha }}
             restore-keys: |
-              ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}
-        - name: Generate timestamp
-          id: timestamp
-          run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+              ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.cuda_version }}
         - uses: paulhatch/semantic-version@v5.0.0-alpha2
           with:
             bump_each_commit: false
-            version_format: "${{ steps.load_config.outputs.grid_version }}-${{ steps.timestamp.outputs.timestamp }}"
+            version_format: "${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}-sha-${GITHUB_SHA:0:6}"
           id: semver
         - name: 'Check version'
           run: |
@@ -97,7 +91,7 @@ jobs:
             set -x
             echo "tag is: "
             echo ${{ steps.semver.outputs.version }}
-            docker buildx build --build-arg DRIVER_URL=${{ steps.load_config.outputs.grid_url }} --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.grid_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-grid:${{ steps.semver.outputs.version }} .
+            docker buildx build --build-arg DRIVER_URL=${{ steps.load_config.outputs.grid_url }} --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.grid_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu:${{ steps.semver.outputs.version }} .
             docker images
         - name: Move cache
           run: |
