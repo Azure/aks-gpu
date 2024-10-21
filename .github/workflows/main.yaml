@@ -98,7 +98,7 @@ jobs:
       - uses: paulhatch/semantic-version@v5.0.0-alpha2
         with:
           bump_each_commit: false
-          version_format: "${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}-${{ steps.timestamp.outputs.timestamp }}"
+          version_format: "${{ steps.load_config.outputs.grid_version }}-${{ steps.timestamp.outputs.timestamp }}"
         id: semver
       - name: 'Check version'
         run: |
