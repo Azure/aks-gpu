@@ -9,6 +9,16 @@
       "matchStrings": [
         "#\\s*renovate:\\s*(datasource=(?<datasource>.*?) )?depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?\\s*.*?version.*\\\"(?<currentValue>.*)\\\""
       ]
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["config\\.sh"],
+      "matchStrings": [
+        "NVIDIA_CONTAINER_TOOLKIT_VER=\"(?<currentValue>.*?)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "NVIDIA/nvidia-container-toolkit",
+      "versioningTemplate": "semver"
     }
   ],
   "customDatasources": {
