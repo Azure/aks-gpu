@@ -1,6 +1,6 @@
 cuda:
   # renovate: datasource=custom.nvidia-driver depName=nvidia-cuda-driver versioning=loose
-  version: "550.127.05"
+  version: "560.35.03"
 
 grid:
   version: "535.161.08"
