@@ -1,53 +1,56 @@
-name: Update NVIDIA GRID Driver
+import os
+import requests
+from ruamel.yaml import YAML
 
-on:
-  schedule:
-    - cron: '0 0 * * *'  # Runs at 00:00 UTC every day
-  workflow_dispatch:  # Allows manual trigger
+def get_latest_grid_driver():
+    # URL of the JSON file containing driver information
+    url = "https://raw.githubusercontent.com/Azure/azhpc-extensions/refs/heads/master/NvidiaGPU/Nvidia-GPU-Linux-Resources.json"
+    response = requests.get(url)
+    response.raise_for_status()  
+    data = response.json()
+    
+    # Extract the latest GRID driver information
+    grid_versions = data['Latest']['Category']
+    grid_info = next((item for item in grid_versions if item["Name"] == "GRID"), None)
+    
+    if grid_info:
+        latest_version_info = grid_info['Versions'][0]
+        latest_version = latest_version_info['DriverVersion']
+        latest_url = latest_version_info['Driver'][0]['DirLink']
+        return latest_version, latest_url
+    
+    raise Exception("Could not find latest GRID driver version")
 
-jobs:
-  update-drivers:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+# Add this at the end of your update_driver_config function
+def update_driver_config():
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    yaml.indent(mapping=2, sequence=4, offset=2)
 
-    steps:
-      - uses: actions/checkout@v4
+    if not os.path.exists("driver_config.yml"):
+        raise FileNotFoundError("driver_config.yml not found in the current directory.")
+    
+    with open("driver_config.yml", "r") as f:
+        config = yaml.load(f)
+    
+    # Get latest version and URL
+    latest_version, latest_url = get_latest_grid_driver()
+    
+    # Store original version for comparison
+    original_version = config['grid']['version']
+    
+    # Update the grid section while preserving order
+    config['grid']['version'] = latest_version
+    config['grid']['url'] = latest_url
+    
+    # Write back to file
+    with open("driver_config.yml", "w") as f:
+        yaml.dump(config, f)
+        
+    # Write version to a file if it changed
+    if original_version != latest_version:
+        with open("new_version.txt", "w") as f:
+            f.write(latest_version)
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install ruamel.yaml requests
-
-      - name: Update driver versions
-        run: python auto_update.py
-
-      - name: Check for changes
-        id: git-check
-        run: |
-          git diff --exit-code driver_config.yml || echo "changes=true" >> $GITHUB_OUTPUT
-          if [ -f new_version.txt ]; then
-            echo "new_version=$(cat new_version.txt)" >> $GITHUB_OUTPUT
-            rm new_version.txt  # Remove the temporary file
-          fi
-
-      - name: Create Pull Request
-        if: steps.git-check.outputs.changes == 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'chore: update NVIDIA GRID driver version to ${{ steps.git-check.outputs.new_version }}'
-          title: 'chore: update NVIDIA GRID driver version to ${{ steps.git-check.outputs.new_version }}'
-          body: |
-            Automated PR to update NVIDIA GRID driver version to ${{ steps.git-check.outputs.new_version }}.
-            
-            This PR was automatically created by the NVIDIA driver update workflow.
-          branch: update-nvidia-drivers-${{ steps.git-check.outputs.new_version }}
-          delete-branch: true
-          base: main
+if __name__ == "__main__":
+    update_driver_config()
