@@ -37,6 +37,10 @@ jobs:
             echo "new_version=$(cat new_version.txt)" >> $GITHUB_OUTPUT
             rm new_version.txt  # Remove the temporary file
           fi
+          NEW_VERSION=$(git diff driver_config.yml | grep -A2 '^\+grid:' | grep '^\+  version' | awk '{print $2}' | tr -d '"')
+          if [ ! -z "$NEW_VERSION" ]; then
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Pull Request
         if: steps.git-check.outputs.changes == 'true'
