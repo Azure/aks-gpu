@@ -33,11 +33,7 @@ jobs:
         id: git-check
         run: |
           git diff --exit-code driver_config.yml || echo "changes=true" >> $GITHUB_OUTPUT
-          if [ -f new_version.txt ]; then
-            echo "new_version=$(cat new_version.txt)" >> $GITHUB_OUTPUT
-            rm new_version.txt  # Remove the temporary file
-          fi
-          NEW_VERSION=$(git diff driver_config.yml | grep -A2 '^\+grid:' | grep '^\+  version' | awk '{print $2}' | tr -d '"')
+          NEW_VERSION=$(git diff driver_config.yml | grep '^\+  version: ' | tail -n1 | cut -d'"' -f2)
           if [ ! -z "$NEW_VERSION" ]; then
             echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           fi
