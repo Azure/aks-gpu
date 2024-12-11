@@ -1,6 +1,9 @@
 name: Run Azure Login with OIDC
 on:
-    workflow_dispatch: {}
+  push:
+    branches:
+      - cameissner/oidc
+  workflow_dispatch: {}
 
 permissions:
   id-token: write
