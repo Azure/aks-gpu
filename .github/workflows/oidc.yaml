@@ -31,6 +31,5 @@ jobs:
             
             # https://github.com/actions/create-github-app-token?tab=readme-ov-file#inputs
             PRIVATE_KEY=$(az keyvault secret show --vault-name ${{ secrets.VAULT_NAME }} -n dummy-private-key --query value -o tsv | sed 's/$/\\n/g' | tr -d '\n' | head -c -2) &> /dev/null
-            echo "DUMMY PRIVATE KEY: $PRIVATE_KEY"
             echo "::add-mask::$PRIVATE_KEY"
             echo "APP_PRIVATE_KEY=$PRIVATE_KEY" >> $GITHUB_OUTPUT
