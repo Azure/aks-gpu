@@ -21,7 +21,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_KV_SUBSCRIPTION_ID }}
 
       - name: Get assistant private key
-        id: app-credentials
+        id: get-private-key
         uses: azure/cli@v2
         with:
           azcliversion: latest
@@ -29,11 +29,11 @@ jobs:
             # https://github.com/actions/create-github-app-token?tab=readme-ov-file#inputs
             private_key=$(az keyvault secret show --vault-name ${{ secrets.VAULT_NAME }} -n dummy-private-key --query value -o tsv | sed 's/$/\\n/g' | tr -d '\n' | head -c -2) &> /dev/null
             echo "::add-mask::$private_key"
-            echo "private_key=$private_key" >> $GITHUB_OUTPUT
+            echo "private-key=$private_key" >> $GITHUB_OUTPUT
 
       - name: Generate token
         id: generate-token
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ vars.APP_ID }}
-          private-key: asdfasdf
+          private-key: ${{ steps.get-private-key.outputs.private-key }}
