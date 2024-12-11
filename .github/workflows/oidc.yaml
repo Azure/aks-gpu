@@ -20,6 +20,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_KV_SUBSCRIPTION_ID }}
 
       - name: Get app credentials
+        id: app-credentials
         uses: azure/cli@v2
         with:
           azcliversion: latest
@@ -28,8 +29,6 @@ jobs:
             echo "::add-mask::$CLIENT_ID"
             echo "APP_CLIENT_ID=$CLIENT_ID" >> $GITHUB_OUTPUT
 
-            PRIVATE_KEY=$(az keyvault secret show --vault-name ${{ secrets.VAULT_NAME }} -n ${{ secrets.APP_PRIVATE_KEY_SECRET_NAME }} | jq -r '.value')
+            PRIVATE_KEY=$(az keyvault secret show --vault-name ${{ secrets.VAULT_NAME }} -n dummy-private-key | jq -r '.value' | awk 'BEGIN {ORS="\\n"} {print}' | head -c -2) &> /dev/null)
             echo "::add-mask::$PRIVATE_KEY"
-            echo 'APP_PRIVATE_KEY<<EOF' >> $GITHUB_OUTPUT
             echo "$PRIVATE_KEY" >> $GITHUB_OUTPUT
-            echo 'EOF' >> $GITHUB_OUTPUT
