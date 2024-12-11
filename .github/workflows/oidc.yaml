@@ -37,3 +37,4 @@ jobs:
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ steps.get-private-key.outputs.private-key }}
+          repositories: aks-gpu
