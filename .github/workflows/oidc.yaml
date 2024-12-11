@@ -20,7 +20,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_KV_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_KV_SUBSCRIPTION_ID }}
 
-      - name: Get app credentials
+      - name: Get assistant private key
         id: app-credentials
         uses: azure/cli@v2
         with:
@@ -36,4 +36,4 @@ jobs:
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ vars.APP_ID }}
-          private-key: ${{ steps.app-credentials.outputs.private-key }}
+          private-key: asdfasdf
