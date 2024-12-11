@@ -7,13 +7,13 @@ on:
       - cameissner/app-tokens
   workflow_dispatch: {}
 
+permissions:
+  id-token: write
+  contents: read
 jobs:
   update-drivers:
+    name: Update GRID Drvers
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-
     steps:
       - uses: actions/checkout@v4
 
