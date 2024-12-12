@@ -1,19 +1,17 @@
 name: Update NVIDIA GRID Driver
-on:
-  # schedule:
-  #   - cron: '0 0 * * *'  # Runs at 00:00 UTC every day
-  push:
-    branches:
-      - cameissner/app-tokens
-  workflow_dispatch: {}
 
-permissions:
-  id-token: write
-  contents: read
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs at 00:00 UTC every day
+  workflow_dispatch:  # Allows manual trigger
+
 jobs:
   update-drivers:
-    name: Update GRID Drvers
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
     steps:
       - uses: actions/checkout@v4
 
