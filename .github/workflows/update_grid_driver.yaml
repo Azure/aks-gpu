@@ -36,13 +36,43 @@ jobs:
           NEW_VERSION=$(git diff driver_config.yml | grep '^\+  version: ' | tail -n1 | cut -d'"' -f2)
           if [ ! -z "$NEW_VERSION" ]; then
             echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "changes=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create Pull Request
+      - name: Azure login
+        if: steps.git-check.outputs.changes == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_KV_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_KV_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_KV_SUBSCRIPTION_ID }}
+
+      - name: Get assistant app private key
+        id: get-private-key
+        if: steps.git-check.outputs.changes == 'true'
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            # https://github.com/actions/create-github-app-token?tab=readme-ov-file#inputs
+            private_key=$(az keyvault secret show --vault-name ${{ secrets.VAULT_NAME }} -n ${{ secrets.APP_PRIVATE_KEY_SECRET_NAME }} --query value -o tsv | sed 's/$/\\n/g' | tr -d '\n' | head -c -2) &> /dev/null
+            echo "::add-mask::$private_key"
+            echo "private-key=$private_key" >> $GITHUB_OUTPUT
+
+      - name: Generate GitHub token
+        if: steps.git-check.outputs.changes == 'true'
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ steps.get-private-key.outputs.private-key }}
+          repositories: aks-gpu
+
+      - name: Create pull request
         if: steps.git-check.outputs.changes == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate-token.outputs.token }}
           commit-message: 'chore: update NVIDIA GRID driver version to ${{ steps.git-check.outputs.new_version }}'
           title: 'chore: update NVIDIA GRID driver version to ${{ steps.git-check.outputs.new_version }}'
           body: |
