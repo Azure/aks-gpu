@@ -5,13 +5,12 @@ on:
     - cron: '0 0 * * *'  # Runs at 00:00 UTC every day
   workflow_dispatch:  # Allows manual trigger
 
+permissions:
+  id-token: write
+  contents: read
 jobs:
   update-drivers:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-
     steps:
       - uses: actions/checkout@v4
 
