@@ -51,7 +51,9 @@ jobs:
           docker images
       - name: Move cache
         run: |
-          rm -r /tmp/.buildx-cache
+          if [ -d /tmp/.buildx-cache ]; then
+            rm -r /tmp/.buildx-cache
+          fi
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
   grid:
       runs-on: ubuntu-latest
