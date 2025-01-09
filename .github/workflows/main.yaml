@@ -62,9 +62,7 @@ jobs:
           docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda:${{ steps.semver.outputs.version }}
       - name: Move cache
         run: |
-          if [ -d /tmp/.buildx-cache ]; then
-            rm -r /tmp/.buildx-cache
-          fi
+          rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
   grid:
     runs-on: ubuntu-latest
@@ -123,7 +121,5 @@ jobs:
           docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-grid:${{ steps.semver.outputs.version }}
       - name: Move cache
         run: |
-          if [ -d /tmp/.buildx-cache ]; then
-            rm -r /tmp/.buildx-cache
-          fi
+          rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
