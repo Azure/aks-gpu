@@ -3,5 +3,5 @@ cuda:
   version: "550.127.08"
 
 grid:
-  version: "550.127.05"
-  url: "https://download.microsoft.com/download/7/e/c/7ec792c9-3654-4f78-b1a0-41a48e10ca6d/NVIDIA-Linux-x86_64-550.127.05-grid-azure.run"
+  version: "535.161.08"
+  url: "https://download.microsoft.com/download/8/d/a/8da4fb8e-3a9b-4e6a-bc9a-72ff64d7a13c/NVIDIA-Linux-x86_64-535.161.08-grid-azure.run"
