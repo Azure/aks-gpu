@@ -64,16 +64,6 @@ popd
 # move nvidia libs to correct location from temporary overlayfs
 cp -a /tmp/overlay/lib64 ${GPU_DEST}/lib64
 
-# grid starts a daemon that prevents copying binaries
-if [ "${DRIVER_KIND}" == "grid" ]; then
-    systemctl stop nvidia-gridd || true
-fi
-
-# restart that daemon, lol
-if [ "${DRIVER_KIND}" == "grid" ]; then
-    systemctl restart nvidia-gridd || true
-fi
-
 # configure system to know about nvidia lib paths
 echo "${GPU_DEST}/lib64" > /etc/ld.so.conf.d/nvidia.conf
 ldconfig 
