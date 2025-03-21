@@ -58,24 +58,11 @@ fi
 
 # install nvidia drivers
 pushd /opt/gpu
-/opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --utility-prefix="${GPU_DEST}" --opengl-prefix="${GPU_DEST}"
+/opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms --opengl-prefix="${GPU_DEST}"
 popd
 
 # move nvidia libs to correct location from temporary overlayfs
 cp -a /tmp/overlay/lib64 ${GPU_DEST}/lib64
-
-# grid starts a daemon that prevents copying binaries
-if [ "${DRIVER_KIND}" == "grid" ]; then
-    systemctl stop nvidia-gridd || true
-fi
-
-# move nvidia binaries to /usr/bin...because we like that?
-cp -rvT ${GPU_DEST}/bin /usr/bin || true
-
-# restart that daemon, lol
-if [ "${DRIVER_KIND}" == "grid" ]; then
-    systemctl restart nvidia-gridd || true
-fi
 
 # configure system to know about nvidia lib paths
 echo "${GPU_DEST}/lib64" > /etc/ld.so.conf.d/nvidia.conf
