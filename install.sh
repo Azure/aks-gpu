@@ -114,6 +114,7 @@ if [ "${DRIVER_KIND}" == "grid" ]; then
     systemctl restart nvidia-gridd || true
 fi
 
+
 # configure system to know about nvidia lib paths
 echo "${GPU_DEST}/lib64" > /etc/ld.so.conf.d/nvidia.conf
 ldconfig 
