@@ -64,6 +64,43 @@ popd
 # move nvidia libs to correct location from temporary overlayfs
 cp -a /tmp/overlay/lib64 ${GPU_DEST}/lib64
 
+handle_nvidia_systemd_units() {
+    SYSTEMD_SRC="/usr/lib/nvidia/systemd"
+    SYSTEMD_DEST="/etc/systemd/system"
+    moved_units=()
+
+    # Check if the source directory exists
+    if [[ -d "$SYSTEMD_SRC" ]]; then
+        # Use find to list *.service files in the source directory
+        found_files=$(find "$SYSTEMD_SRC" -maxdepth 1 -name "*.service")
+        if [ -z "$found_files" ]; then
+            echo "No systemd unit files found in $SYSTEMD_SRC"
+        else
+            # Loop through each found file, move it, and record its name
+            while IFS= read -r unit; do
+                mv "$unit" "$SYSTEMD_DEST/"
+                unit_name=$(basename "$unit")
+                moved_units+=("$unit_name")
+                echo "Moved $unit_name to $SYSTEMD_DEST"
+            done <<< "$found_files"
+        fi
+    else
+        echo "Source directory $SYSTEMD_SRC does not exist. Skipping systemd unit file move."
+    fi
+
+    # Reload systemd to pick up the moved unit files
+    systemctl daemon-reload
+
+    # Enable and restart only the moved units
+    for unit_name in "${moved_units[@]}"; do
+        systemctl enable "$unit_name"
+        systemctl restart "$unit_name"
+        echo "$unit_name enabled and restarted."
+    done
+}
+
+handle_nvidia_systemd_units
+
 # grid starts a daemon that prevents copying binaries
 if [ "${DRIVER_KIND}" == "grid" ]; then
     systemctl stop nvidia-gridd || true
