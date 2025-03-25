@@ -94,8 +94,8 @@ handle_nvidia_systemd_units() {
     # Enable and restart only the moved units
     for unit_name in "${moved_units[@]}"; do
         systemctl enable "$unit_name"
-        systemctl start "$unit_name"
-        echo "$unit_name enabled and started."
+        systemctl restart "$unit_name"
+        echo "$unit_name enabled and restarted."
     done
 }
 
