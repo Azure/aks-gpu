@@ -99,8 +99,6 @@ handle_nvidia_systemd_units() {
     done
 }
 
-handle_nvidia_systemd_units
-
 # grid starts a daemon that prevents copying binaries
 if [ "${DRIVER_KIND}" == "grid" ]; then
     systemctl stop nvidia-gridd || true
@@ -114,6 +112,7 @@ if [ "${DRIVER_KIND}" == "grid" ]; then
     systemctl restart nvidia-gridd || true
 fi
 
+handle_nvidia_systemd_units
 
 # configure system to know about nvidia lib paths
 echo "${GPU_DEST}/lib64" > /etc/ld.so.conf.d/nvidia.conf
