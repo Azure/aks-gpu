@@ -91,9 +91,13 @@ handle_nvidia_systemd_units() {
     # Reload systemd to pick up the moved unit files
     systemctl daemon-reload
 
+    # Enable and restart only the moved units
+    for unit_name in "${moved_units[@]}"; do
+        systemctl enable "$unit_name"
+        systemctl start "$unit_name"
+        echo "$unit_name enabled and started."
+    done
 }
-
-handle_nvidia_systemd_units
 
 # grid starts a daemon that prevents copying binaries
 if [ "${DRIVER_KIND}" == "grid" ]; then
@@ -107,6 +111,8 @@ cp -rvT ${GPU_DEST}/bin /usr/bin || true
 if [ "${DRIVER_KIND}" == "grid" ]; then
     systemctl restart nvidia-gridd || true
 fi
+
+handle_nvidia_systemd_units
 
 # configure system to know about nvidia lib paths
 echo "${GPU_DEST}/lib64" > /etc/ld.so.conf.d/nvidia.conf
