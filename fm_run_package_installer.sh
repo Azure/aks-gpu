@@ -34,8 +34,9 @@ cp ${ROOTDIR}/systemd/nvidia-fabricmanager.service  /lib/systemd/system
 mkdir /usr/share/nvidia  > /dev/null 2>&1
 mkdir /usr/share/nvidia/nvswitch/  > /dev/null 2>&1
 cp ${ROOTDIR}/share/nvidia/nvswitch/dgx2_hgx2_topology    /usr/share/nvidia/nvswitch/
-cp ${ROOTDIR}/share/nvidia/nvswitch/dgxa100_hgxa100_topology    /usr/share/nvidia/nvswitch/
-cp ${ROOTDIR}/share/nvidia/nvswitch/dgxh100_hgxh100_topology  /usr/share/nvidia/nvswitch/
+# Copy all topology files at once
+cp ${ROOTDIR}/share/nvidia/nvswitch/* /usr/share/nvidia/nvswitch/
+
 cp ${ROOTDIR}/etc/fabricmanager.cfg  /usr/share/nvidia/nvswitch/
 
 cp ${ROOTDIR}/include/nv_fm_agent.h     /usr/include
