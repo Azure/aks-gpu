@@ -38,5 +38,11 @@
       "matchMessage": "/custom datasource/",
       "newLogLevel": "debug"
     }
+  ],
+  "packageRules": [
+    {
+      "matchDepNames": ["NVIDIA/nvidia-container-toolkit"],
+      "automerge": true
+    }
   ]
 }
