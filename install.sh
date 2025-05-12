@@ -85,6 +85,7 @@ nvidia-modprobe -u -c0
 # reduces nvidia-smi invocation time 10x from 30 to 2 sec 
 # notable on large VM sizes with multiple GPUs
 # especially when nvidia-smi process is in CPU cgroup
+cp -r /usr/bin/lib64/lib64/* /usr/lib/x86_64-linux-gnu/
 nvidia-smi
 
 # install fabricmanager for nvlink based systems
