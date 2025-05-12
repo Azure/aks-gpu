@@ -59,6 +59,7 @@ fi
 # install nvidia drivers
 pushd /opt/gpu
 /opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms
+nvidia-smi
 popd
 
 # move nvidia libs to correct location from temporary overlayfs
@@ -84,9 +85,6 @@ nvidia-modprobe -u -c0
 # reduces nvidia-smi invocation time 10x from 30 to 2 sec 
 # notable on large VM sizes with multiple GPUs
 # especially when nvidia-smi process is in CPU cgroup
-cp /opt/gpu/nvidia-persistenced.service /etc/systemd/system/nvidia-persistenced.service
-systemctl enable nvidia-persistenced.service
-systemctl restart nvidia-persistenced.service
 nvidia-smi
 
 # install fabricmanager for nvlink based systems
