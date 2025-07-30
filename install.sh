@@ -24,7 +24,7 @@ install_cached_nvidia_packages() {
 for apt_package in $NVIDIA_PACKAGES; do
     dpkg -i --force-overwrite /opt/gpu/${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}*
 done
-}
+} 
 
 use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packages 10 3
 
