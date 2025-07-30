@@ -7,6 +7,7 @@ root@518f7df53862:/opt/gpu/fabricmanager-linux-x86_64-470.57.02# tree
 |-- LICENSE
 |-- bin
 |   |-- nv-fabricmanager
+|   |-- nvidia-fabricmanager-start.sh
 |   `-- nvswitch-audit
 |-- etc
 |   `-- fabricmanager.cfg
