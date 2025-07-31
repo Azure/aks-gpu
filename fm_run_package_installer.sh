@@ -29,6 +29,8 @@ cp -P ${ROOTDIR}/lib/libnvfm.so   /usr/lib/x86_64-linux-gnu
 
 cp ${ROOTDIR}/bin/nv-fabricmanager  /usr/bin
 cp ${ROOTDIR}/bin/nvswitch-audit  /usr/bin
+cp ${ROOTDIR}/bin/nvidia-fabricmanager-start.sh /usr/bin
+
 cp ${ROOTDIR}/systemd/nvidia-fabricmanager.service  /lib/systemd/system
 
 mkdir /usr/share/nvidia  > /dev/null 2>&1
