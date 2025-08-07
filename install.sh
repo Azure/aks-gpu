@@ -91,7 +91,12 @@ nvidia-smi
 
 # install fabricmanager for nvlink based systems
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    bash /opt/gpu/fabricmanager-linux-$(uname -m)-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+    NVIDIA_FM_ARCH=$(uname -m)
+    if [ $NVIDIA_FM_ARCH = "arm64" ]; then
+        # NVIDIA uses the name "SBSA" for ARM64 platforms for the fabric manager. See https://en.wikipedia.org/wiki/Server_Base_System_Architecture
+        NVIDIA_FM_ARCH="sbsa"
+    fi
+    bash /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 fi
 
 mkdir -p /etc/containerd/config.d

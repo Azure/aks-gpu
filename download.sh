@@ -7,19 +7,26 @@ source /opt/gpu/config.sh
 workdir="$(mktemp -d)"
 pushd "$workdir" || exit
 
-NVIDIA_ARCH=$TARGETARCH
+NVIDIA_DRIVER_ARCH=$TARGETARCH
 if [ $TARGETARCH = "arm64" ]; then
-    # NVIDIA uses the name "SBSA" for ARM64 platforms. See https://en.wikipedia.org/wiki/Server_Base_System_Architecture
-    NVIDIA_ARCH="sbsa"
+    NVIDIA_DRIVER_ARCH="aarch64"
 elif [ $TARGETARCH = "amd64" ]; then
-    NVIDIA_ARCH="x86_64"
+    NVIDIA_DRIVER_ARCH="x86_64"
+fi
+
+NVIDIA_FM_ARCH=$TARGETARCH
+if [ $TARGETARCH = "arm64" ]; then
+    # NVIDIA uses the name "SBSA" for ARM64 platforms for the fabric manager. See https://en.wikipedia.org/wiki/Server_Base_System_Architecture
+    NVIDIA_FM_ARCH="sbsa"
+elif [ $TARGETARCH = "amd64" ]; then
+    NVIDIA_FM_ARCH="x86_64"
 fi
 
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    RUNFILE="NVIDIA-Linux-${NVIDIA_ARCH}-${DRIVER_VERSION}"
+    RUNFILE="NVIDIA-Linux-${NVIDIA_DRIVER_ARCH}-${DRIVER_VERSION}"
     curl -fsSLO https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${RUNFILE}.run 
 elif [[ "${DRIVER_KIND}" == "grid" ]]; then
-    RUNFILE="NVIDIA-Linux-${NVIDIA_ARCH}-${DRIVER_VERSION}-grid-azure"
+    RUNFILE="NVIDIA-Linux-${NVIDIA_DRIVER_ARCH}-${DRIVER_VERSION}-grid-azure"
     curl -fsSLO "${DRIVER_URL}"
 else
     echo "Invalid driver kind: ${DRIVER_KIND}"
