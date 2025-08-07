@@ -8,9 +8,11 @@ workdir="$(mktemp -d)"
 pushd "$workdir" || exit
 
 NVIDIA_ARCH=$TARGETARCH
-if [[ "${TARGETARCH}" == "arm64" ]]; then
+if [ $TARGETARCH = "arm64" ]; then
     # NVIDIA uses the name "SBSA" for ARM64 platforms. See https://en.wikipedia.org/wiki/Server_Base_System_Architecture
     NVIDIA_ARCH="sbsa"
+elif [ $TARGETARCH = "amd64" ]; then
+    NVIDIA_ARCH="x86_64"
 fi
 
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
