@@ -56,7 +56,7 @@ jobs:
           set -x
           echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda:${{ steps.semver.outputs.version }} .
+          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --build-arg ARCH=x86_64 --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda:${{ steps.semver.outputs.version }} .
           docker images
           az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
           docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda:${{ steps.semver.outputs.version }}
