@@ -42,10 +42,10 @@ rm /opt/gpu/${RUNFILE}.run
 popd
 
 install_fabric_manager () {
-    curl -fsSLO https://developer.download.nvidia.com/compute/nvidia-driver/redist/fabricmanager/linux-${NVIDIA_ARCH}/fabricmanager-linux-${NVIDIA_ARCH}-${DRIVER_VERSION}-archive.tar.xz
-    tar -xvf fabricmanager-linux-${NVIDIA_ARCH}-${DRIVER_VERSION}-archive.tar.xz
-    mv fabricmanager-linux-${NVIDIA_ARCH}-${DRIVER_VERSION}-archive /opt/gpu/fabricmanager-linux-${NVIDIA_ARCH}-${DRIVER_VERSION}
-    mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-${NVIDIA_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+    curl -fsSLO https://developer.download.nvidia.com/compute/nvidia-driver/redist/fabricmanager/linux-${NVIDIA_FM_ARCH}/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}-archive.tar.xz
+    tar -xvf fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}-archive.tar.xz
+    mv fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}-archive /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}
+    mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 }
 
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
