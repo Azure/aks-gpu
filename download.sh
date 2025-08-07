@@ -7,8 +7,8 @@ source /opt/gpu/config.sh
 workdir="$(mktemp -d)"
 pushd "$workdir" || exit
 
-NVIDIA_ARCH=$ARCH
-if [[ "${ARCH}" == "arm64" ]]; then
+NVIDIA_ARCH=$TARGETARCH
+if [[ "${TARGETARCH}" == "arm64" ]]; then
     # NVIDIA uses the name "SBSA" for ARM64 platforms. See https://en.wikipedia.org/wiki/Server_Base_System_Architecture
     NVIDIA_ARCH="sbsa"
 fi
