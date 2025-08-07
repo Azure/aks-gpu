@@ -64,6 +64,63 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+  cuda-arm64:
+    runs-on: ubuntu-24.04-arm  # see https://github.com/actions/partner-runner-images?tab=readme-ov-file#available-images
+    strategy:
+      matrix:
+        driver_kind: ["cuda"]
+        platform:
+          - linux/arm64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Load CUDA config
+        id: load_config
+        run: |
+          cuda_version=$(yq e '.cuda.version' driver_config.yml)
+          echo "CUDA_VERSION=$cuda_version"
+          echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+      - uses: paulhatch/semantic-version@v5.0.0-alpha2
+        with:
+          bump_each_commit: false
+          version_format: "${{ steps.load_config.outputs.cuda_version }}-${{ steps.timestamp.outputs.timestamp }}"
+        id: semver
+      - name: 'Check version'
+        run: |
+          echo "version is ${{ steps.semver.outputs.version }}"
+          echo "version is ${{ steps.semver.outputs.version_tag }}"
+      - name: 'Azure CLI login'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: 'Build and Push'
+        run: |
+          set -x
+          echo "tag is: "
+          echo ${{ steps.semver.outputs.version }}
+          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --build-arg ARCH=arm64 --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda-arm64:${{ steps.semver.outputs.version }} .
+          docker images
+          az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
+          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda-arm64:${{ steps.semver.outputs.version }}
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
   grid:
     runs-on: ubuntu-latest
     strategy:

@@ -24,8 +24,8 @@ STATUS=`systemctl is-active nvidia-fabricmanager`
 
 # copy all the files
 echo "Copying files to desired location"
-cp ${ROOTDIR}/lib/libnvfm.so.1 /usr/lib/x86_64-linux-gnu
-cp -P ${ROOTDIR}/lib/libnvfm.so   /usr/lib/x86_64-linux-gnu
+cp ${ROOTDIR}/lib/libnvfm.so.1 /usr/lib/$(uname -m)-linux-gnu
+cp -P ${ROOTDIR}/lib/libnvfm.so   /usr/lib/$(uname -m)-linux-gnu
 
 cp ${ROOTDIR}/bin/nv-fabricmanager  /usr/bin
 cp ${ROOTDIR}/bin/nvswitch-audit  /usr/bin

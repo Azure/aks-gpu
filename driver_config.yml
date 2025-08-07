@@ -4,4 +4,5 @@ cuda:
 
 grid:
   version: "550.144.06"
+  # We do not support GRID drivers on ARM64 architecture.
   url: "https://download.microsoft.com/download/c5319e92-672e-4067-8d85-ab66a7a64db3/NVIDIA-Linux-x86_64-550.144.06-grid-azure.run"
