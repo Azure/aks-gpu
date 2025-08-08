@@ -9,6 +9,7 @@ PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 
 KERNEL_NAME=$(uname -r)
 LOG_FILE_NAME="/var/log/nvidia-installer-$(date +%s).log"
+ARCH=$(uname -m)
 
 set +euo pipefail
 open_devices="$(lsof /dev/nvidia* 2>/dev/null)"
@@ -34,22 +35,26 @@ update-initramfs -u
 
 # clean up lingering files from previous install
 set +e
-umount -l /usr/lib/x86_64-linux-gnu || true
+umount -l /usr/lib/$(uname -m)-linux-gnu || true
 umount -l /tmp/overlay || true
 rm -r /tmp/overlay || true
 set -e
 
-# set up overlayfs to change install location of nvidia libs from /usr/lib/x86_64-linux-gnu to /usr/local/nvidia
+# set up overlayfs to change install location of nvidia libs from /usr/lib/$ARCH-linux-gnu to /usr/local/nvidia
 # add an extra layer of indirection via tmpfs because it's not possible to have an overlayfs on an overlayfs (i.e., inside a container)
 mkdir /tmp/overlay
 mount -t tmpfs tmpfs /tmp/overlay
 mkdir /tmp/overlay/{workdir,lib64}
 mkdir -p ${GPU_DEST}/lib64
-mount -t overlay overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir /usr/lib/x86_64-linux-gnu
+mount -t overlay overlay -o lowerdir=/usr/lib/$(uname -m)-linux-gnu,upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir /usr/lib/$(uname -m)-linux-gnu
 
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}"
+    RUNFILE="NVIDIA-Linux-$(uname -m)-${DRIVER_VERSION}"
 elif [[ "${DRIVER_KIND}" == "grid" ]]; then
+    if [[ $(uname -m) != "x86_64" ]]; then
+        echo "GRID driver is only supported on x86_64 architecture"
+        exit 1
+    fi
     RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
 else
     echo "Invalid driver kind: ${DRIVER_KIND}"
@@ -71,7 +76,7 @@ ldconfig
 
 # unmount, cleanup
 set +e
-umount -l /usr/lib/x86_64-linux-gnu
+umount -l /usr/lib/$(uname -m)-linux-gnu
 umount /tmp/overlay
 rm -r /tmp/overlay
 set -e
@@ -85,12 +90,17 @@ nvidia-modprobe -u -c0
 # reduces nvidia-smi invocation time 10x from 30 to 2 sec 
 # notable on large VM sizes with multiple GPUs
 # especially when nvidia-smi process is in CPU cgroup
-cp -r /usr/bin/lib64/lib64/* /usr/lib/x86_64-linux-gnu/
+cp -r /usr/bin/lib64/lib64/* /usr/lib/$(uname -m)-linux-gnu/
 nvidia-smi
 
 # install fabricmanager for nvlink based systems
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    bash /opt/gpu/fabricmanager-linux-x86_64-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+    NVIDIA_FM_ARCH=$(uname -m)
+    if [ $NVIDIA_FM_ARCH = "arm64" ]; then
+        # NVIDIA uses the name "SBSA" for ARM64 platforms for the fabric manager. See https://en.wikipedia.org/wiki/Server_Base_System_Architecture
+        NVIDIA_FM_ARCH="sbsa"
+    fi
+    bash /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 fi
 
 mkdir -p /etc/containerd/config.d

@@ -7,6 +7,7 @@ RUN apt update && apt install -y curl xz-utils gnupg2 ca-certificates gettext-ba
 ARG DRIVER_VERSION
 ARG DRIVER_URL
 ARG DRIVER_KIND="cuda"
+ARG TARGETARCH
 
 WORKDIR /opt/gpu
 COPY 10-nvidia-runtime.toml 10-nvidia-runtime.toml 
