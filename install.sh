@@ -51,7 +51,11 @@ mount -t overlay overlay -o lowerdir=/usr/lib/$(uname -m)-linux-gnu,upperdir=/tm
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
     RUNFILE="NVIDIA-Linux-$(uname -m)-${DRIVER_VERSION}"
 elif [[ "${DRIVER_KIND}" == "grid" ]]; then
-    RUNFILE="NVIDIA-Linux-$(uname -m)-${DRIVER_VERSION}-grid-azure"
+    if [[ $(uname -m) != "x86_64" ]]; then
+        echo "GRID driver is only supported on x86_64 architecture"
+        exit 1
+    fi
+    RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}-grid-azure"
 else
     echo "Invalid driver kind: ${DRIVER_KIND}"
     exit 1
