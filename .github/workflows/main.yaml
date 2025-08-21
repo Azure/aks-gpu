@@ -26,6 +26,16 @@ jobs:
           echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      - name: Set up Docker to use containerd
+        uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "debug": true,
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
       - name: Cache Docker layers
         uses: actions/cache@v4
         with:
