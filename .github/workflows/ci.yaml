@@ -12,7 +12,7 @@ jobs:
       matrix:
         driver_kind: ["cuda"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Load CUDA config
@@ -73,7 +73,7 @@ jobs:
         platform:
           - linux/arm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Load CUDA config
@@ -120,7 +120,7 @@ jobs:
         matrix:
           driver_kind: ["grid"]
       steps:
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@v6
           with:
             fetch-depth: 0
         - name: Load GRID config
