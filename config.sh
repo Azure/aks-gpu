@@ -1,5 +1,5 @@
 DRIVER_VERSION="${DRIVER_VERSION}"
 DRIVER_KIND="${DRIVER_KIND}"
-NVIDIA_CONTAINER_TOOLKIT_VER="1.17.8"
+NVIDIA_CONTAINER_TOOLKIT_VER="1.18.1"
 NVIDIA_PACKAGES="libnvidia-container1 libnvidia-container-tools nvidia-container-toolkit-base nvidia-container-toolkit"
 GPU_DEST="/usr/bin"
