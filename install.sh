@@ -21,6 +21,68 @@ echo "Open gridd: $open_gridd"
 set -euo pipefail
 
 # install cached nvidia debian packages for container runtime compatibility
+ensure_cdi_refresh_units() {
+    local missing_units=()
+    local units=("nvidia-cdi-refresh.path" "nvidia-cdi-refresh.service")
+
+    for unit in "${units[@]}"; do
+        if systemctl cat "${unit}" >/dev/null 2>&1; then
+            systemctl enable --now "${unit}"
+        else
+            missing_units+=("${unit}")
+        fi
+    done
+
+    if [[ ${#missing_units[@]} -gt 0 ]]; then
+        echo "Missing expected systemd units: ${missing_units[*]}."
+        echo "Proceeding without automatic CDI refresh; containers may fail without manual nvidia-ctk cdi generate."
+        return 1
+    fi
+
+    return 0
+}
+
+ensure_runtime_cdi_spec() {
+    local tmpfile
+    tmpfile=$(mktemp)
+
+    if ! nvidia-ctk cdi list >"${tmpfile}" 2>&1; then
+        echo "nvidia-ctk cdi list failed; attempting regeneration."
+        mkdir -p /var/run/cdi
+        if ! nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.yaml; then
+            echo "Unable to generate CDI specification; see above logs."
+            cat "${tmpfile}"
+            rm -f "${tmpfile}"
+            return 1
+        fi
+        if ! nvidia-ctk cdi list >"${tmpfile}"; then
+            echo "nvidia-ctk cdi list still failing after regeneration."
+            cat "${tmpfile}"
+            rm -f "${tmpfile}"
+            return 1
+        fi
+    fi
+
+    if ! grep -q "runtime.nvidia.com/gpu" "${tmpfile}"; then
+        echo "runtime.nvidia.com/gpu devices not found; forcing CDI spec regeneration."
+        mkdir -p /var/run/cdi
+        if ! nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.yaml; then
+            echo "Unable to generate CDI specification containing runtime.nvidia.com aliases."
+            cat "${tmpfile}"
+            rm -f "${tmpfile}"
+            return 1
+        fi
+        if ! nvidia-ctk cdi list >"${tmpfile}" || ! grep -q "runtime.nvidia.com/gpu" "${tmpfile}"; then
+            echo "CDI specification still missing runtime.nvidia.com devices after regeneration."
+            cat "${tmpfile}"
+            rm -f "${tmpfile}"
+            return 1
+        fi
+    fi
+
+    rm -f "${tmpfile}"
+}
+
 install_cached_nvidia_packages() {
 for apt_package in $NVIDIA_PACKAGES; do
     dpkg -i --force-overwrite /opt/gpu/${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}*
@@ -28,6 +90,8 @@ done
 }
 
 use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packages 10 3
+ensure_cdi_refresh_units
+ensure_runtime_cdi_spec
 
 # blacklist nouveau driver, nvidia driver dependency
 cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf
