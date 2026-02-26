@@ -27,7 +27,7 @@ ensure_cdi_refresh_units() {
 
     for unit in "${units[@]}"; do
         if systemctl cat "${unit}" >/dev/null 2>&1; then
-            systemctl enable --now "${unit}"
+            systemctl enable "${unit}"
         else
             missing_units+=("${unit}")
         fi
@@ -83,6 +83,27 @@ ensure_runtime_cdi_spec() {
     rm -f "${tmpfile}"
 }
 
+start_cdi_refresh_units() {
+    local units=("nvidia-cdi-refresh.path" "nvidia-cdi-refresh.service")
+    local started=false
+
+    for unit in "${units[@]}"; do
+        if systemctl cat "${unit}" >/dev/null 2>&1; then
+            if systemctl start "${unit}"; then
+                started=true
+            else
+                echo "Warning: failed to start ${unit}; will fall back to nvidia-ctk cdi generate."
+            fi
+        fi
+    done
+
+    if ! $started; then
+        echo "Warning: unable to start any nvidia-cdi-refresh units; falling back to manual CDI generation."
+    fi
+
+    ensure_runtime_cdi_spec
+}
+
 install_cached_nvidia_packages() {
 for apt_package in $NVIDIA_PACKAGES; do
     dpkg -i --force-overwrite /opt/gpu/${apt_package}_${NVIDIA_CONTAINER_TOOLKIT_VER}*
@@ -91,7 +112,6 @@ done
 
 use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packages 10 3
 ensure_cdi_refresh_units
-ensure_runtime_cdi_spec
 
 # blacklist nouveau driver, nvidia driver dependency
 cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf
@@ -166,6 +186,8 @@ if [[ "${DRIVER_KIND}" == "cuda" ]]; then
     fi
     bash /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 fi
+
+start_cdi_refresh_units
 
 mkdir -p /etc/containerd/config.d
 cp /opt/gpu/10-nvidia-runtime.toml /etc/containerd/config.d/10-nvidia-runtime.toml
