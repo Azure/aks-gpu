@@ -24,10 +24,12 @@ set -euo pipefail
 ensure_cdi_refresh_units() {
     local missing_units=()
     local units=("nvidia-cdi-refresh.path" "nvidia-cdi-refresh.service")
+    local enabled=()
 
     for unit in "${units[@]}"; do
         if systemctl cat "${unit}" >/dev/null 2>&1; then
             systemctl enable "${unit}"
+            enabled+=("${unit}")
         else
             missing_units+=("${unit}")
         fi
@@ -37,6 +39,10 @@ ensure_cdi_refresh_units() {
         echo "Missing expected systemd units: ${missing_units[*]}."
         echo "Proceeding without automatic CDI refresh; containers may fail without manual nvidia-ctk cdi generate."
         return 1
+    fi
+
+    if [[ ${#enabled[@]} -gt 0 ]]; then
+        echo "Enabled CDI refresh units: ${enabled[*]}"
     fi
 
     return 0
@@ -83,14 +89,40 @@ ensure_runtime_cdi_spec() {
     rm -f "${tmpfile}"
 }
 
+log_cdi_refresh_status() {
+    local service_status path_status
+
+    if systemctl is-enabled nvidia-cdi-refresh.service &>/dev/null; then
+        service_status="enabled"
+    else
+        service_status="disabled"
+    fi
+
+    if systemctl is-enabled nvidia-cdi-refresh.path &>/dev/null; then
+        path_status="enabled"
+    else
+        path_status="disabled"
+    fi
+
+    echo "CDI refresh units status: service=${service_status}, path=${path_status}"
+
+    if systemctl is-active nvidia-cdi-refresh.service &>/dev/null; then
+        echo "nvidia-cdi-refresh.service is active"
+    else
+        echo "Warning: nvidia-cdi-refresh.service is not active"
+    fi
+}
+
 start_cdi_refresh_units() {
     local units=("nvidia-cdi-refresh.path" "nvidia-cdi-refresh.service")
     local started=false
+    local started_units=()
 
     for unit in "${units[@]}"; do
         if systemctl cat "${unit}" >/dev/null 2>&1; then
             if systemctl start "${unit}"; then
                 started=true
+                started_units+=("${unit}")
             else
                 echo "Warning: failed to start ${unit}; will fall back to nvidia-ctk cdi generate."
             fi
@@ -99,9 +131,12 @@ start_cdi_refresh_units() {
 
     if ! $started; then
         echo "Warning: unable to start any nvidia-cdi-refresh units; falling back to manual CDI generation."
+    else
+        echo "Started CDI refresh units: ${started_units[*]}"
     fi
 
     ensure_runtime_cdi_spec
+    log_cdi_refresh_status
 }
 
 install_cached_nvidia_packages() {
