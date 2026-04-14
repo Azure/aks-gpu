@@ -49,7 +49,7 @@ jobs:
       - name: Get assistant app private key
         id: get-private-key
         if: steps.git-check.outputs.changes == 'true'
-        uses: azure/cli@v2
+        uses: azure/cli@v3
         with:
           azcliversion: latest
           inlineScript: |
