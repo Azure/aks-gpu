@@ -48,7 +48,7 @@ jobs:
       - name: Generate timestamp
         id: timestamp
         run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
-      - uses: paulhatch/semantic-version@v5.4.0
+      - uses: paulhatch/semantic-version@v6.0.2
         with:
           bump_each_commit: false
           version_format: "${{ steps.load_config.outputs.cuda_version }}-${{ steps.timestamp.outputs.timestamp }}"
@@ -105,7 +105,7 @@ jobs:
       - name: Generate timestamp
         id: timestamp
         run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
-      - uses: paulhatch/semantic-version@v5.4.0
+      - uses: paulhatch/semantic-version@v6.0.2
         with:
           bump_each_commit: false
           version_format: "${{ steps.load_config.outputs.cuda_version }}-${{ steps.timestamp.outputs.timestamp }}"
@@ -156,7 +156,7 @@ jobs:
       - name: Generate timestamp
         id: timestamp
         run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
-      - uses: paulhatch/semantic-version@v5.4.0
+      - uses: paulhatch/semantic-version@v6.0.2
       - name: Cache Docker layers
         uses: actions/cache@v5
         with:
@@ -164,7 +164,7 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}
-      - uses: paulhatch/semantic-version@v5.4.0
+      - uses: paulhatch/semantic-version@v6.0.2
         with:
           bump_each_commit: false
           version_format: "${{ steps.load_config.outputs.grid_version }}-${{ steps.timestamp.outputs.timestamp }}"
