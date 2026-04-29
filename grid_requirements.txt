@@ -1,2 +1,2 @@
 ruamel.yaml==0.18.15
-requests==2.33.0
+requests==2.33.1
