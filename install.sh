@@ -31,7 +31,7 @@ use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packag
 
 # blacklist nouveau driver, nvidia driver dependency
 cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf
-update-initramfs -u
+update_initramfs_for_nouveau_blacklist
 
 # clean up lingering files from previous install
 set +e
@@ -95,11 +95,7 @@ nvidia-smi
 
 # install fabricmanager for nvlink based systems
 if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    NVIDIA_FM_ARCH=$(uname -m)
-    if [ $NVIDIA_FM_ARCH = "arm64" ]; then
-        # NVIDIA uses the name "SBSA" for ARM64 platforms for the fabric manager. See https://en.wikipedia.org/wiki/Server_Base_System_Architecture
-        NVIDIA_FM_ARCH="sbsa"
-    fi
+    NVIDIA_FM_ARCH="$(get_fabric_manager_arch)"
     bash /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 fi
 
