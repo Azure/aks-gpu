@@ -12,6 +12,20 @@ wait_for_dpkg_lock() {
    done
 }
 
+get_fabric_manager_arch() {
+  case "$(uname -m)" in
+    arm64|aarch64)
+      echo "sbsa"
+      ;;
+    amd64|x86_64)
+      echo "x86_64"
+      ;;
+    *)
+      uname -m
+      ;;
+  esac
+}
+
 use_package_manager_with_retries() {
   local wait_for_locks=$1
   local install_dependencies=$2
@@ -28,4 +42,35 @@ use_package_manager_with_retries() {
     else sleep "$sleep_duration"
     fi
   done
+}
+
+update_initramfs_for_nouveau_blacklist() {
+  local kernel_name initrd_path
+
+  kernel_name="$(uname -r)"
+  initrd_path="/boot/initrd.img-${kernel_name}"
+
+  if ! command -v update-initramfs >/dev/null 2>&1; then
+    echo "Skipping initramfs update because update-initramfs is unavailable"
+    return 0
+  fi
+
+  if ! command -v lsinitramfs >/dev/null 2>&1; then
+    echo "lsinitramfs is unavailable; updating initramfs conservatively"
+    update-initramfs -u -k "${kernel_name}"
+    return 0
+  fi
+
+  if [[ ! -f "${initrd_path}" ]]; then
+    echo "Skipping initramfs update because ${initrd_path} does not exist"
+    return 0
+  fi
+
+  if lsinitramfs "${initrd_path}" | grep -Eq '(^|/)kernel/.*/nouveau\.ko(\.[^.]+)?$'; then
+    echo "Updating initramfs to apply nouveau blacklist for ${kernel_name}"
+    update-initramfs -u -k "${kernel_name}"
+    return 0
+  fi
+
+  echo "Skipping initramfs update because nouveau is not present in ${initrd_path}"
 }

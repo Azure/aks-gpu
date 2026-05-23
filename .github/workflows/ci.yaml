@@ -1,4 +1,4 @@
-name: CI test build
+name: CI build
 on:
   pull_request:
     branches:
@@ -50,11 +50,11 @@ jobs:
           bump_each_commit: false
           version_format: "${{ steps.load_config.outputs.cuda_version }}-${{ steps.timestamp.outputs.timestamp }}"
         id: semver
-      - name: 'Check version'
+      - name: Check version
         run: |
           echo "version is ${{ steps.semver.outputs.version }}"
           echo "version is ${{ steps.semver.outputs.version_tag }}"
-      - name: 'Build and Push'
+      - name: Build CUDA image
         run: |
           set -x
           echo "tag is: "
@@ -99,11 +99,11 @@ jobs:
           bump_each_commit: false
           version_format: "${{ steps.load_config.outputs.cuda_version }}-${{ steps.timestamp.outputs.timestamp }}"
         id: semver
-      - name: 'Check version'
+      - name: Check version
         run: |
           echo "version is ${{ steps.semver.outputs.version }}"
           echo "version is ${{ steps.semver.outputs.version_tag }}"
-      - name: 'Build and Push'
+      - name: Build CUDA arm64 image
         run: |
           set -x
           echo "tag is: "
@@ -115,53 +115,125 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
   grid:
-      runs-on: ubuntu-latest
-      strategy:
-        matrix:
-          driver_kind: ["grid"]
-      steps:
-        - uses: actions/checkout@v6
-          with:
-            fetch-depth: 0
-        - name: Load GRID config
-          id: load_config
-          run: |
-              grid_version=$(yq e '.grid.version' driver_config.yml)
-              grid_url=$(yq e '.grid.url' driver_config.yml)
-              echo "GRID_VERSION=$grid_version"
-              echo "GRID_URL=$grid_url"
-              echo "grid_version=$grid_version" >> $GITHUB_OUTPUT
-              echo "grid_url=$grid_url" >> $GITHUB_OUTPUT
-        - name: Set up Docker Buildx
-          uses: docker/setup-buildx-action@v4
-        - name: Cache Docker layers
-          uses: actions/cache@v5
-          with:
-            path: /tmp/.buildx-cache
-            key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}-${{ github.sha }}
-            restore-keys: |
-              ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}
-        - name: Generate timestamp
-          id: timestamp
-          run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
-        - uses: paulhatch/semantic-version@v6.0.2
-          with:
-            bump_each_commit: false
-            version_format: "${{ steps.load_config.outputs.grid_version }}-${{ steps.timestamp.outputs.timestamp }}"
-          id: semver
-        - name: 'Check version'
-          run: |
-            echo "version is ${{ steps.semver.outputs.version }}"
-            echo "version is ${{ steps.semver.outputs.version_tag }}"
-        - name: 'Build and Push'
-          run: |
-            set -x
-            echo "tag is: "
-            echo ${{ steps.semver.outputs.version }}
-            docker buildx build --build-arg DRIVER_URL=${{ steps.load_config.outputs.grid_url }} --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.grid_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-grid:${{ steps.semver.outputs.version }} .
-            docker images
-        - name: Move cache
-          run: |
-            rm -rf /tmp/.buildx-cache
-            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        driver_kind: ["grid"]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Load GRID config
+        id: load_config
+        run: |
+          grid_version=$(yq e '.grid.version' driver_config.yml)
+          grid_url=$(yq e '.grid.url' driver_config.yml)
+          echo "GRID_VERSION=$grid_version"
+          echo "GRID_URL=$grid_url"
+          echo "grid_version=$grid_version" >> $GITHUB_OUTPUT
+          echo "grid_url=$grid_url" >> $GITHUB_OUTPUT
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Cache Docker layers
+        uses: actions/cache@v5
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+      - uses: paulhatch/semantic-version@v6.0.2
+        with:
+          bump_each_commit: false
+          version_format: "${{ steps.load_config.outputs.grid_version }}-${{ steps.timestamp.outputs.timestamp }}"
+        id: semver
+      - name: Check version
+        run: |
+          echo "version is ${{ steps.semver.outputs.version }}"
+          echo "version is ${{ steps.semver.outputs.version_tag }}"
+      - name: Build GRID image
+        run: |
+          set -x
+          echo "tag is: "
+          echo ${{ steps.semver.outputs.version }}
+          docker buildx build --build-arg DRIVER_URL=${{ steps.load_config.outputs.grid_url }} --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.grid_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-grid:${{ steps.semver.outputs.version }} .
+          docker images
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+  package-cuda:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Load CUDA config
+        id: load_config
+        run: |
+          cuda_version=$(yq e '.cuda.version' driver_config.yml)
+          echo "CUDA_VERSION=$cuda_version"
+          echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT
+      - name: Build CUDA amd64 package
+        run: |
+          bash ./build_package.sh \
+            --driver-kind cuda \
+            --driver-version "${{ steps.load_config.outputs.cuda_version }}" \
+            --target-arch amd64 \
+            --distro 24.04
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aks-gpu-cuda-amd64
+          path: dist/*.tar.gz
+  package-cuda-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Load CUDA config
+        id: load_config
+        run: |
+          cuda_version=$(yq e '.cuda.version' driver_config.yml)
+          echo "CUDA_VERSION=$cuda_version"
+          echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT
+      - name: Build CUDA arm64 package
+        run: |
+          bash ./build_package.sh \
+            --driver-kind cuda \
+            --driver-version "${{ steps.load_config.outputs.cuda_version }}" \
+            --target-arch arm64 \
+            --distro 24.04
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aks-gpu-cuda-arm64
+          path: dist/*.tar.gz
+  package-grid:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Load GRID config
+        id: load_config
+        run: |
+          grid_version=$(yq e '.grid.version' driver_config.yml)
+          grid_url=$(yq e '.grid.url' driver_config.yml)
+          echo "GRID_VERSION=$grid_version"
+          echo "GRID_URL=$grid_url"
+          echo "grid_version=$grid_version" >> $GITHUB_OUTPUT
+          echo "grid_url=$grid_url" >> $GITHUB_OUTPUT
+      - name: Build GRID amd64 package
+        run: |
+          bash ./build_package.sh \
+            --driver-kind grid \
+            --driver-version "${{ steps.load_config.outputs.grid_version }}" \
+            --driver-url "${{ steps.load_config.outputs.grid_url }}" \
+            --target-arch amd64 \
+            --distro 24.04
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aks-gpu-grid-amd64
+          path: dist/*.tar.gz

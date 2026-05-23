@@ -7,7 +7,7 @@ on:
   
 permissions:
   id-token: write
-  contents: read
+  contents: write
 jobs:
   cuda:
     runs-on: ubuntu-latest
@@ -53,17 +53,17 @@ jobs:
           bump_each_commit: false
           version_format: "${{ steps.load_config.outputs.cuda_version }}-${{ steps.timestamp.outputs.timestamp }}"
         id: semver
-      - name: 'Check version'
+      - name: Check version
         run: |
           echo "version is ${{ steps.semver.outputs.version }}"
           echo "version is ${{ steps.semver.outputs.version_tag }}"
-      - name: 'Azure CLI login'
+      - name: Azure CLI login
         uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: 'Build and Push'
+      - name: Build and Push CUDA image
         run: |
           set -x
           echo "tag is: "
@@ -110,17 +110,17 @@ jobs:
           bump_each_commit: false
           version_format: "${{ steps.load_config.outputs.cuda_version }}-${{ steps.timestamp.outputs.timestamp }}"
         id: semver
-      - name: 'Check version'
+      - name: Check version
         run: |
           echo "version is ${{ steps.semver.outputs.version }}"
           echo "version is ${{ steps.semver.outputs.version_tag }}"
-      - name: 'Azure CLI login'
+      - name: Azure CLI login
         uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: 'Build and Push'
+      - name: Build and Push CUDA arm64 image
         run: |
           set -x
           echo "tag is: "
@@ -169,17 +169,17 @@ jobs:
           bump_each_commit: false
           version_format: "${{ steps.load_config.outputs.grid_version }}-${{ steps.timestamp.outputs.timestamp }}"
         id: semver
-      - name: 'Check version'
+      - name: Check version
         run: |
           echo "version is ${{ steps.semver.outputs.version }}"
           echo "version is ${{ steps.semver.outputs.version_tag }}"
-      - name: 'Azure CLI login'
+      - name: Azure CLI login
         uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: 'Build and Push'
+      - name: Build and Push GRID image
         run: |
           set -x
           echo "tag is: "
@@ -192,3 +192,102 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+  package-cuda:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Load CUDA config
+        id: load_config
+        run: |
+          cuda_version=$(yq e '.cuda.version' driver_config.yml)
+          echo "CUDA_VERSION=$cuda_version"
+          echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT
+      - name: Build CUDA amd64 package
+        run: |
+          bash ./build_package.sh \
+            --driver-kind cuda \
+            --driver-version "${{ steps.load_config.outputs.cuda_version }}" \
+            --target-arch amd64 \
+            --distro 24.04
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aks-gpu-cuda-amd64
+          path: dist/*.tar.gz
+  package-cuda-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Load CUDA config
+        id: load_config
+        run: |
+          cuda_version=$(yq e '.cuda.version' driver_config.yml)
+          echo "CUDA_VERSION=$cuda_version"
+          echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT
+      - name: Build CUDA arm64 package
+        run: |
+          bash ./build_package.sh \
+            --driver-kind cuda \
+            --driver-version "${{ steps.load_config.outputs.cuda_version }}" \
+            --target-arch arm64 \
+            --distro 24.04
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aks-gpu-cuda-arm64
+          path: dist/*.tar.gz
+  package-grid:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Load GRID config
+        id: load_config
+        run: |
+          grid_version=$(yq e '.grid.version' driver_config.yml)
+          grid_url=$(yq e '.grid.url' driver_config.yml)
+          echo "GRID_VERSION=$grid_version"
+          echo "GRID_URL=$grid_url"
+          echo "grid_version=$grid_version" >> $GITHUB_OUTPUT
+          echo "grid_url=$grid_url" >> $GITHUB_OUTPUT
+      - name: Build GRID amd64 package
+        run: |
+          bash ./build_package.sh \
+            --driver-kind grid \
+            --driver-version "${{ steps.load_config.outputs.grid_version }}" \
+            --driver-url "${{ steps.load_config.outputs.grid_url }}" \
+            --target-arch amd64 \
+            --distro 24.04
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aks-gpu-grid-amd64
+          path: dist/*.tar.gz
+  publish-release:
+    runs-on: ubuntu-24.04
+    needs:
+      - package-cuda
+      - package-cuda-arm64
+      - package-grid
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Create or update release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          short_sha="${GITHUB_SHA::12}"
+          release_tag="gpu-packages-${short_sha}"
+          release_title="GPU packages ${short_sha}"
+
+          if gh release view "${release_tag}" >/dev/null 2>&1; then
+            gh release upload "${release_tag}" release-assets/*.tar.gz --clobber
+          else
+            gh release create "${release_tag}" release-assets/*.tar.gz \
+              --title "${release_title}" \
+              --notes "Host-executable GPU driver packages built from commit ${GITHUB_SHA}."
+          fi
