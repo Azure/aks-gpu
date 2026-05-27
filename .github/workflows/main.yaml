@@ -13,7 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        driver_kind: ["cuda"]
+        include:
+          - config_key: cuda
+            image_repo: aks-gpu-cuda
+          - config_key: cuda_lts
+            image_repo: aks-gpu-cuda-lts
     steps:
       - uses: actions/checkout@v6
         with:
@@ -21,7 +25,7 @@ jobs:
       - name: Load CUDA config
         id: load_config
         run: |
-          cuda_version=$(yq e '.cuda.version' driver_config.yml)
+          cuda_version=$(yq e '.${{ matrix.config_key }}.version' driver_config.yml)
           echo "CUDA_VERSION=$cuda_version"
           echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT
       - name: Set up QEMU
@@ -42,9 +46,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ matrix.image_repo }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-
+            ${{ runner.os }}-buildx-${{ matrix.image_repo }}-
       - name: Generate timestamp
         id: timestamp
         run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
@@ -68,10 +72,10 @@ jobs:
           set -x
           echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
-          docker buildx build --platform linux/arm64/v8,linux/amd64 --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda:${{ steps.semver.outputs.version }} .
+          docker buildx build --platform linux/arm64/v8,linux/amd64 --build-arg DRIVER_KIND=cuda --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }} .
           docker images
           az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
-          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda:${{ steps.semver.outputs.version }}
+          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }}
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
@@ -80,9 +84,11 @@ jobs:
     runs-on: ubuntu-24.04-arm  # see https://github.com/actions/partner-runner-images?tab=readme-ov-file#available-images
     strategy:
       matrix:
-        driver_kind: ["cuda"]
-        platform:
-          - linux/arm64
+        include:
+          - config_key: cuda
+            image_repo: aks-gpu-cuda-arm64
+          - config_key: cuda_lts
+            image_repo: aks-gpu-cuda-lts-arm64
     steps:
       - uses: actions/checkout@v6
         with:
@@ -90,7 +96,7 @@ jobs:
       - name: Load CUDA config
         id: load_config
         run: |
-          cuda_version=$(yq e '.cuda.version' driver_config.yml)
+          cuda_version=$(yq e '.${{ matrix.config_key }}.version' driver_config.yml)
           echo "CUDA_VERSION=$cuda_version"
           echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT      
       - name: Set up Docker Buildx
@@ -99,9 +105,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ matrix.image_repo }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-
+            ${{ runner.os }}-buildx-${{ matrix.image_repo }}-
       - name: Generate timestamp
         id: timestamp
         run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
@@ -125,10 +131,10 @@ jobs:
           set -x
           echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda-arm64:${{ steps.semver.outputs.version }} .
+          docker buildx build --build-arg DRIVER_KIND=cuda --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }} .
           docker images
           az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
-          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-cuda-arm64:${{ steps.semver.outputs.version }}
+          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }}
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
@@ -137,7 +143,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        driver_kind: ["grid"]
+        include:
+          - config_key: grid
+            image_repo: aks-gpu-grid
+          - config_key: grid_v20
+            image_repo: aks-gpu-grid-v20
     steps:
       - uses: actions/checkout@v6
         with:
@@ -145,8 +155,8 @@ jobs:
       - name: Load GRID config
         id: load_config
         run: |
-            grid_version=$(yq e '.grid.version' driver_config.yml)
-            grid_url=$(yq e '.grid.url' driver_config.yml)
+            grid_version=$(yq e '.${{ matrix.config_key }}.version' driver_config.yml)
+            grid_url=$(yq e '.${{ matrix.config_key }}.url' driver_config.yml)
             echo "GRID_VERSION=$grid_version"
             echo "GRID_URL=$grid_url"
             echo "grid_version=$grid_version" >> $GITHUB_OUTPUT
@@ -161,9 +171,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ matrix.image_repo }}-${{ steps.load_config.outputs.grid_version }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-${{ matrix.driver_kind}}-${{ steps.load_config.outputs.grid_version }}
+            ${{ runner.os }}-buildx-${{ matrix.image_repo }}-${{ steps.load_config.outputs.grid_version }}
       - uses: paulhatch/semantic-version@v6.0.2
         with:
           bump_each_commit: false
@@ -184,10 +194,10 @@ jobs:
           set -x
           echo "tag is: "
           echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_URL=${{ steps.load_config.outputs.grid_url }} --build-arg DRIVER_KIND=${{ matrix.driver_kind }} --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.grid_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-grid:${{ steps.semver.outputs.version }} .
+          docker buildx build --build-arg DRIVER_URL=${{ steps.load_config.outputs.grid_url }} --build-arg DRIVER_KIND=grid --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.grid_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }} .
           docker images
           az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
-          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/aks-gpu-grid:${{ steps.semver.outputs.version }}
+          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }}
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
