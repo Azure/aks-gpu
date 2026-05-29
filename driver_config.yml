@@ -2,7 +2,17 @@ cuda:
   # renovate: datasource=custom.nvidia-driver depName=nvidia-cuda-driver versioning=loose
   version: "595.71.05"
 
+cuda_lts:
+  # NVIDIA R580 Long Term Support Branch (LTSB), supported through Aug 2028.
+  version: "580.159.04"
+
 grid:
   version: "570.211.01"
   # We do not support GRID drivers on ARM64 architecture.
   url: "https://download.microsoft.com/download/2a04ca6a-9eec-40d9-9564-9cdea1ab795f/NVIDIA-Linux-x86_64-570.211.01-grid-azure.run"
+
+grid_v20:
+  version: "595.58.03"
+  # We do not support GRID drivers on ARM64 architecture.
+  # GRID v20 is required for RTX PRO 6000 Blackwell Server Edition v6 SKUs.
+  url: "https://download.microsoft.com/download/51239696-ec04-4c02-a6b3-1d9c608fb57c/NVIDIA-Linux-x86_64-595.58.03-grid-azure.run"
