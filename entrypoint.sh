@@ -23,11 +23,30 @@ if [[ "${1}" == "copy" ]]; then
     exit 0
 fi
 
-if [[ "${1}" == "install" ]]; then
-    echo "copying gpu cache files"
-    cp -a /opt/gpu/. /mnt/gpu/
-    echo "copied successfully!"
-fi
+# Map the requested action to the install mode passed to install.sh.
+#   install            -> full compile + device init (legacy behaviour)
+#   build-only         -> compile/cache the kernel module only (VHD build, no GPU)
+#   install-skip-build -> device init only, reusing the module prebuilt into the VHD
+GPU_INSTALL_MODE_ENV=""
+case "${1}" in
+    install)
+        echo "copying gpu cache files"
+        cp -a /opt/gpu/. /mnt/gpu/
+        echo "copied successfully!"
+        ;;
+    build-only)
+        echo "copying gpu cache files (build-only)"
+        cp -a /opt/gpu/. /mnt/gpu/
+        echo "copied successfully!"
+        GPU_INSTALL_MODE_ENV="AKSGPU_BUILD_ONLY=1"
+        ;;
+    install-skip-build)
+        echo "copying gpu cache files (install-skip-build)"
+        cp -a /opt/gpu/. /mnt/gpu/
+        echo "copied successfully!"
+        GPU_INSTALL_MODE_ENV="AKSGPU_SKIP_KERNEL_BUILD=1"
+        ;;
+esac
 
 ACTION_FILE="/opt/actions/install.sh"
 
@@ -46,7 +65,11 @@ cp -R /opt/actions/. /mnt/actions
 
 echo "Executing nsenter"
 
-nsenter -t 1 -m bash "${ACTION_FILE}"
+if [[ -n "${GPU_INSTALL_MODE_ENV}" ]]; then
+    nsenter -t 1 -m env "${GPU_INSTALL_MODE_ENV}" bash "${ACTION_FILE}"
+else
+    nsenter -t 1 -m bash "${ACTION_FILE}"
+fi
 RESULT="${PIPESTATUS[0]}"
 
 if [ $RESULT -eq 0 ]; then
