@@ -85,11 +85,7 @@ set -e
 dkms status
 nvidia-modprobe -u -c0
 
-# configure persistence daemon
-# decreases latency for later driver loads
-# reduces nvidia-smi invocation time 10x from 30 to 2 sec 
-# notable on large VM sizes with multiple GPUs
-# especially when nvidia-smi process is in CPU cgroup
+# copy nvidia userspace libs into the system library path so nvidia-smi can resolve them
 cp -r /usr/bin/lib64/lib64/* /usr/lib/$(uname -m)-linux-gnu/
 nvidia-smi
 
