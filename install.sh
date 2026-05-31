@@ -29,9 +29,21 @@ done
 
 use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packages 10 3
 
-# blacklist nouveau driver, nvidia driver dependency
-cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf
-update-initramfs -u
+# blacklist nouveau driver, nvidia driver dependency.
+# Rebuilding the initramfs costs ~10-30s at every node boot. When the VHD already baked the
+# nouveau blacklist into its initramfs for THIS exact kernel (AgentBaker writes the marker
+# below), skip the rebuild. Fall back to the full path on any mismatch -- older VHD without the
+# marker, kernel drift between VHD build and node boot, or altered on-disk content -- so the
+# outcome is always correct regardless of VHD/image version skew.
+NOUVEAU_BLACKLIST_MARKER="/opt/azure/aks-gpu/nouveau-blacklist-marker"
+if [ -f "${NOUVEAU_BLACKLIST_MARKER}" ] && \
+   grep -qx "kernel=$(uname -r)" "${NOUVEAU_BLACKLIST_MARKER}" && \
+   cmp -s /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf; then
+    echo "nouveau blacklist already baked into VHD initramfs for kernel $(uname -r); skipping update-initramfs"
+else
+    cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf
+    update-initramfs -u
+fi
 
 # clean up lingering files from previous install
 set +e
