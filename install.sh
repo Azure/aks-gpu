@@ -4,7 +4,6 @@ set -euxo pipefail
 source /opt/gpu/config.sh
 source /opt/gpu/package_manager_helpers.sh
 
-trap 'PS4="+ "' exit
 PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 
 # Install mode flags (set by entrypoint.sh based on the requested action):
@@ -39,7 +38,9 @@ cleanup_overlay() {
     fi
     set -e
 }
-trap cleanup_overlay EXIT
+# Reset PS4 on exit alongside the overlay cleanup (a single EXIT trap, since a second
+# `trap ... EXIT` would replace the first rather than chain).
+trap 'cleanup_overlay; PS4="+ "' EXIT
 
 resolve_runfile() {
     if [[ "${DRIVER_KIND}" == "cuda" ]]; then
@@ -153,10 +154,11 @@ arch=${ARCH}
 EOF
 }
 
-# baked_marker_matches returns success only when the VHD baked a driver that exactly matches
-# what this image installs (kernel + driver_version + driver_kind). It gates the skip-build
-# fast path defensively: even if AgentBaker mistakenly requests skip-build for the wrong
-# driver kind (e.g. GRID on a CUDA-baked VHD), a mismatch here forces the safe full rebuild.
+# baked_marker_matches returns success only when the VHD's baked driver exactly matches what
+# this node needs (kernel + driver_version + driver_kind). AgentBaker requests skip-build based
+# only on the marker's presence and delegates the actual match check here, so a CUDA-baked VHD
+# booting a GRID node -- or a driver-version bump since bake -- fails this check and falls back
+# to a full build.
 baked_marker_matches() {
     [ -f "${DKMS_MARKER_FILE}" ] || return 1
     local m_kernel m_version m_kind
@@ -184,20 +186,18 @@ unload_nvidia_modules() {
 }
 
 # remove_stale_baked_driver wipes any pre-existing nvidia DKMS state + relocated userspace
-# libs before a full (re)build. It exists for the shared-VHD case where a driver of a
-# DIFFERENT kind/version was prebuilt into the image at VHD build time (e.g. CUDA is baked,
-# but this node is a GRID SKU, or the VHD's baked driver is older than the one CSE requests).
+# libs before a full (re)build. The caller invokes it only when a driver was prebaked into the
+# VHD (marker present) yet we still reached the full-build path -- i.e. the baked driver does
+# not match what this node needs. That case is reachable: AgentBaker selects install-skip-build
+# purely on marker presence, so a CUDA-baked VHD on a GRID SKU (or a driver-version bump since
+# bake) lands here.
 #
-# Reaching the full-build path at all means we are NOT trusting the baked artifact, so any
-# registered nvidia DKMS tree is stale by definition and must go: otherwise the boot-time
-# `nvidia-installer --dkms` collides with it (two trees target the same
-# /lib/modules/<kernel>/updates/dkms/nvidia.ko, and `dkms add` errors on an already-registered
-# version), and the baked install's relocated libs (${GPU_DEST}/lib64 +
+# The stale tree must go: otherwise the boot-time `nvidia-installer --dkms` collides with it
+# (both target /lib/modules/<kernel>/updates/dkms/nvidia.ko, and `dkms add` errors on an
+# already-registered version), and the baked install's relocated libs (${GPU_DEST}/lib64 +
 # /etc/ld.so.conf.d/nvidia.conf) stay on the loader path at the wrong version, breaking
-# nvidia-smi / library loads.
-#
-# It is a no-op on today's VHDs (nothing baked / nothing registered), so default behaviour is
-# unchanged.
+# nvidia-smi / library loads. Non-prebaked VHDs have no marker, so this never runs there and
+# the legacy install path is unchanged.
 remove_stale_baked_driver() {
     command -v dkms >/dev/null 2>&1 || return 0
 
@@ -254,11 +254,15 @@ if [ "${AKSGPU_SKIP_KERNEL_BUILD}" = "1" ] && baked_marker_matches; then
 else
     # Full build at boot: either skip-build wasn't requested, or the baked marker doesn't match
     # what this image installs (different kind/version — e.g. a GRID node booting a CUDA-baked
-    # VHD). Wipe any stale baked driver first so the fresh install doesn't collide with it.
+    # VHD). Only when a driver was actually baked into this VHD (marker present) do we wipe the
+    # stale tree first so the fresh install doesn't collide with it; plain installs on
+    # non-prebaked VHDs have no marker and take the unchanged legacy path.
     if [ "${AKSGPU_SKIP_KERNEL_BUILD}" = "1" ]; then
         echo "aks-gpu: skip-kernel-build requested but baked marker does not match ${DRIVER_KIND} ${DRIVER_VERSION} on ${KERNEL_NAME}; falling back to full build"
     fi
-    remove_stale_baked_driver
+    if [ -f "${DKMS_MARKER_FILE}" ]; then
+        remove_stale_baked_driver
+    fi
     build_kernel_module
 fi
 

@@ -23,30 +23,22 @@ if [[ "${1}" == "copy" ]]; then
     exit 0
 fi
 
-# Map the requested action to the install mode passed to install.sh.
+# Map the requested action to the install mode passed to install.sh. All three install
+# variants stage the same gpu cache files; only the env var handed to install.sh differs.
 #   install            -> full compile + device init (legacy behaviour)
 #   build-only         -> compile/cache the kernel module only (VHD build, no GPU)
 #   install-skip-build -> device init only, reusing the module prebuilt into the VHD
 GPU_INSTALL_MODE_ENV=""
 case "${1}" in
-    install)
-        echo "copying gpu cache files"
-        cp -a /opt/gpu/. /mnt/gpu/
-        echo "copied successfully!"
-        ;;
-    build-only)
-        echo "copying gpu cache files (build-only)"
-        cp -a /opt/gpu/. /mnt/gpu/
-        echo "copied successfully!"
-        GPU_INSTALL_MODE_ENV="AKSGPU_BUILD_ONLY=1"
-        ;;
-    install-skip-build)
-        echo "copying gpu cache files (install-skip-build)"
-        cp -a /opt/gpu/. /mnt/gpu/
-        echo "copied successfully!"
-        GPU_INSTALL_MODE_ENV="AKSGPU_SKIP_KERNEL_BUILD=1"
-        ;;
+    build-only)         GPU_INSTALL_MODE_ENV="AKSGPU_BUILD_ONLY=1" ;;
+    install-skip-build) GPU_INSTALL_MODE_ENV="AKSGPU_SKIP_KERNEL_BUILD=1" ;;
 esac
+
+if [[ "${1}" == "install" || -n "${GPU_INSTALL_MODE_ENV}" ]]; then
+    echo "copying gpu cache files (${1})"
+    cp -a /opt/gpu/. /mnt/gpu/
+    echo "copied successfully!"
+fi
 
 ACTION_FILE="/opt/actions/install.sh"
 
