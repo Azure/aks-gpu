@@ -26,6 +26,24 @@ KERNEL_NAME=$(uname -r)
 LOG_FILE_NAME="/var/log/nvidia-installer-$(date +%s).log"
 ARCH=$(uname -m)
 
+# target_build_kernel returns the kernel the VHD will actually boot. At VHD build time the Packer
+# builder is still running the image's PREVIOUS kernel, while the build has already upgraded the
+# image to a NEWER kernel and installed only that target kernel's headers (the builder kernel's
+# headers are purged). Compiling against `uname -r` would therefore fail (no headers) and, even if
+# it succeeded, the dkms-marker would not match the kernel the node boots. Select the newest kernel
+# that has a usable headers/build tree; fall back to the running kernel when none is found (e.g. a
+# normal node boot, where uname -r is already correct).
+target_build_kernel() {
+    local d k
+    # newest installed kernel that has a headers/build tree (the VHD's target kernel)
+    k=$(for d in /lib/modules/*/build; do
+            [ -d "$d" ] || continue
+            d=${d%/build}
+            echo "${d#/lib/modules/}"
+        done | sort -V | tail -n1)
+    if [ -n "$k" ]; then echo "$k"; else uname -r; fi
+}
+
 # cleanup_overlay tears down the tmpfs+overlay scaffold. It is driven entirely by the live mount
 # state (mountpoint -q) rather than a flag, so it is idempotent and correct no matter where a
 # failure occurred -- including a partial setup where only the tmpfs mounted but the
@@ -202,7 +220,9 @@ echo "Open gridd: $open_gridd"
 set -euo pipefail
 
 if [ "${AKSGPU_BUILD_ONLY}" = "1" ]; then
-    # VHD build time: compile + cache + marker only, no device access.
+    # VHD build time: compile + cache + marker only, no device access. Target the kernel the VHD
+    # will boot (not the builder's running kernel) so the prebuilt module + marker match at boot.
+    KERNEL_NAME="$(target_build_kernel)"
     echo "aks-gpu: build-only mode (prebuilding kernel module for kernel ${KERNEL_NAME})"
     build_and_mark
     rm -r /opt/gpu
