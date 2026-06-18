@@ -26,15 +26,21 @@ KERNEL_NAME=$(uname -r)
 LOG_FILE_NAME="/var/log/nvidia-installer-$(date +%s).log"
 ARCH=$(uname -m)
 
-# Track overlay/tmpfs state so a build-time exit can never leave dangling mounts in the VHD.
-OVERLAY_MOUNTED=0
+# cleanup_overlay tears down the tmpfs+overlay scaffold. It is driven entirely by the live mount
+# state (mountpoint -q) rather than a flag, so it is idempotent and correct no matter where a
+# failure occurred -- including a partial setup where only the tmpfs mounted but the
+# overlay-on-/usr/lib mount failed. This guarantees a build-time exit never freezes a dangling
+# mount into the VHD, and never clears state while a mount is still live.
 cleanup_overlay() {
     set +e
-    if [ "${OVERLAY_MOUNTED}" = "1" ]; then
-        umount -l "/usr/lib/${ARCH}-linux-gnu" || true
-        umount /tmp/overlay || true
-        rm -r /tmp/overlay || true
-        OVERLAY_MOUNTED=0
+    if mountpoint -q "/usr/lib/${ARCH}-linux-gnu"; then
+        umount -l "/usr/lib/${ARCH}-linux-gnu"
+    fi
+    if mountpoint -q /tmp/overlay; then
+        umount /tmp/overlay
+    fi
+    if ! mountpoint -q /tmp/overlay 2>/dev/null; then
+        rm -rf /tmp/overlay
     fi
     set -e
 }
@@ -76,21 +82,16 @@ build_kernel_module() {
     cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf
     update-initramfs -u
 
-    # clean up lingering files from previous install
-    set +e
-    umount -l "/usr/lib/${ARCH}-linux-gnu" || true
-    umount -l /tmp/overlay || true
-    rm -r /tmp/overlay || true
-    set -e
+    # clear any lingering mounts from a previous attempt (idempotent, mount-state driven)
+    cleanup_overlay
 
-    # set up overlayfs to change install location of nvidia libs from /usr/lib/$ARCH-linux-gnu to /usr/local/nvidia
+    # set up overlayfs to relocate nvidia libs from /usr/lib/$ARCH-linux-gnu into GPU_DEST/lib64.
     # add an extra layer of indirection via tmpfs because it's not possible to have an overlayfs on an overlayfs (i.e., inside a container)
-    mkdir /tmp/overlay
+    mkdir -p /tmp/overlay
     mount -t tmpfs tmpfs /tmp/overlay
-    mkdir /tmp/overlay/{workdir,lib64}
+    mkdir -p /tmp/overlay/workdir /tmp/overlay/lib64
     mkdir -p ${GPU_DEST}/lib64
     mount -t overlay overlay -o lowerdir="/usr/lib/${ARCH}-linux-gnu",upperdir=/tmp/overlay/lib64,workdir=/tmp/overlay/workdir "/usr/lib/${ARCH}-linux-gnu"
-    OVERLAY_MOUNTED=1
 
     resolve_runfile
 
@@ -146,12 +147,15 @@ device_init() {
 
 write_dkms_marker() {
     mkdir -p "$(dirname "${DKMS_MARKER_FILE}")"
-    cat > "${DKMS_MARKER_FILE}" <<EOF
+    local tmp_marker="${DKMS_MARKER_FILE}.tmp.$$"
+    cat > "${tmp_marker}" <<EOF
 kernel=${KERNEL_NAME}
 driver_version=${DRIVER_VERSION}
 driver_kind=${DRIVER_KIND}
 arch=${ARCH}
 EOF
+    # atomic publish: a partially-written marker must never be observed by the boot-time check
+    mv -f "${tmp_marker}" "${DKMS_MARKER_FILE}"
 }
 
 # baked_marker_matches returns success only when the VHD's baked driver exactly matches what
@@ -170,59 +174,23 @@ baked_marker_matches() {
     [ "${m_kind}" = "${DRIVER_KIND}" ]
 }
 
-# unload_nvidia_modules best-effort unloads any currently-loaded NVIDIA kernel modules in
-# dependency order. dkms remove only unregisters/deletes files; it will NOT rmmod a loaded
-# module, and installing a new driver over a still-loaded stale one yields a kernel/userspace
-# version mismatch. Best-effort: nvidia-installer (run later in build_kernel_module) is the
-# backstop and will hard-fail if devices are genuinely in use.
-unload_nvidia_modules() {
-    local mod
-    for mod in nvidia_uvm nvidia_drm nvidia_modeset nvidia_peermem nvidia; do
-        if lsmod 2>/dev/null | grep -q "^${mod} "; then
-            echo "aks-gpu: unloading stale module ${mod}"
-            rmmod "${mod}" 2>/dev/null || modprobe -r "${mod}" 2>/dev/null || true
-        fi
-    done
+# build_and_mark compiles + DKMS-registers the module, then records exactly what was built so
+# the marker always reflects on-disk reality. Writing the marker after every build (not just at
+# VHD-bake time) means a boot-time fallback build also refreshes the marker, so the *next* boot
+# takes the fast path instead of rebuilding forever.
+build_and_mark() {
+    build_kernel_module
+    write_dkms_marker
 }
 
-# remove_stale_baked_driver wipes any pre-existing nvidia DKMS state + relocated userspace
-# libs before a full (re)build. The caller invokes it only when a driver was prebaked into the
-# VHD (marker present) yet we still reached the full-build path -- i.e. the baked driver does
-# not match what this node needs. That case is reachable: AgentBaker selects install-skip-build
-# purely on marker presence, so a CUDA-baked VHD on a GRID SKU (or a driver-version bump since
-# bake) lands here.
-#
-# The stale tree must go: otherwise the boot-time `nvidia-installer --dkms` collides with it
-# (both target /lib/modules/<kernel>/updates/dkms/nvidia.ko, and `dkms add` errors on an
-# already-registered version), and the baked install's relocated libs (${GPU_DEST}/lib64 +
-# /etc/ld.so.conf.d/nvidia.conf) stay on the loader path at the wrong version, breaking
-# nvidia-smi / library loads. Non-prebaked VHDs have no marker, so this never runs there and
-# the legacy install path is unchanged.
-remove_stale_baked_driver() {
-    command -v dkms >/dev/null 2>&1 || return 0
-
-    # Versions of the nvidia DKMS module currently registered on the host, parsed from
-    # `dkms status` (handles both "nvidia/<ver>," and legacy "nvidia, <ver>," formats).
-    local registered_versions
-    registered_versions="$(dkms status 2>/dev/null \
-        | sed -n 's#^nvidia[,/][[:space:]]*\([^,]*\).*#\1#p' \
-        | sort -u || true)"
-    [ -z "${registered_versions}" ] && return 0
-
-    unload_nvidia_modules
-
-    local v
-    for v in ${registered_versions}; do
-        echo "aks-gpu: removing stale baked nvidia DKMS module ${v} (node needs ${DRIVER_KIND} ${DRIVER_VERSION})"
-        dkms remove "nvidia/${v}" --all || true
-    done
-
-    # Drop the baked install's relocated libs + loader config + marker so only the driver we
-    # are about to build ends up on the path. build_kernel_module recreates the libs/conf.
-    rm -f /etc/ld.so.conf.d/nvidia.conf || true
-    rm -rf "${GPU_DEST:?}/lib64" || true
-    rm -f "${DKMS_MARKER_FILE}" || true
-    ldconfig || true
+# fast_path_ok opportunistically validates a prebaked module without recompiling. It returns
+# non-zero (instead of aborting under `set -e`) so a corrupt or incomplete prebake falls back to
+# a full build rather than bricking the node. The authoritative device check still happens later
+# in device_init (nvidia-modprobe + nvidia-smi).
+fast_path_ok() {
+    ldconfig || return 1
+    dkms status >/dev/null 2>&1 || return 1
+    modinfo -k "${KERNEL_NAME}" nvidia >/dev/null 2>&1 || return 1
 }
 
 set +euo pipefail
@@ -234,36 +202,27 @@ echo "Open gridd: $open_gridd"
 set -euo pipefail
 
 if [ "${AKSGPU_BUILD_ONLY}" = "1" ]; then
-    # VHD build time: compile + cache only, no device access.
+    # VHD build time: compile + cache + marker only, no device access.
     echo "aks-gpu: build-only mode (prebuilding kernel module for kernel ${KERNEL_NAME})"
-    build_kernel_module
-    write_dkms_marker
+    build_and_mark
     rm -r /opt/gpu
     exit 0
 fi
 
 install_nvidia_container_toolkit
 
-if [ "${AKSGPU_SKIP_KERNEL_BUILD}" = "1" ] && baked_marker_matches; then
-    # Node boot, prebuilt module valid for this kernel+driver: skip recompilation, ensure the
-    # baked module is loadable, then run the device-dependent steps only.
-    echo "aks-gpu: skip-kernel-build mode (using module prebuilt in VHD for kernel ${KERNEL_NAME})"
-    ldconfig
-    dkms status
-    modinfo -k "$KERNEL_NAME" nvidia
+if [ "${AKSGPU_SKIP_KERNEL_BUILD}" = "1" ] && baked_marker_matches && fast_path_ok; then
+    # Prebuilt module is present and valid for this kernel+driver: skip the ~100s recompile.
+    echo "aks-gpu: using kernel module prebuilt in the VHD for kernel ${KERNEL_NAME} (recompile skipped)"
 else
-    # Full build at boot: either skip-build wasn't requested, or the baked marker doesn't match
-    # what this image installs (different kind/version — e.g. a GRID node booting a CUDA-baked
-    # VHD). Only when a driver was actually baked into this VHD (marker present) do we wipe the
-    # stale tree first so the fresh install doesn't collide with it; plain installs on
-    # non-prebaked VHDs have no marker and take the unchanged legacy path.
     if [ "${AKSGPU_SKIP_KERNEL_BUILD}" = "1" ]; then
-        echo "aks-gpu: skip-kernel-build requested but baked marker does not match ${DRIVER_KIND} ${DRIVER_VERSION} on ${KERNEL_NAME}; falling back to full build"
+        echo "aks-gpu: prebuilt module missing/invalid for ${DRIVER_KIND} ${DRIVER_VERSION} on ${KERNEL_NAME}; building from source"
     fi
-    if [ -f "${DKMS_MARKER_FILE}" ]; then
-        remove_stale_baked_driver
-    fi
-    build_kernel_module
+    # No bespoke stale-driver teardown is needed: `nvidia-installer -s` automatically uninstalls
+    # any previously runfile-installed driver -- including a mismatched prebaked one -- and its
+    # DKMS registration before installing the new one. build_and_mark then refreshes the marker
+    # to match what we just built, so subsequent boots take the fast path.
+    build_and_mark
 fi
 
 device_init
