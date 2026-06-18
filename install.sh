@@ -115,8 +115,14 @@ build_kernel_module() {
 
     # install nvidia drivers (DKMS build is the dominant cost we are hoisting to VHD build time)
     pushd /opt/gpu
-    /opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms
+    local installer_rc=0
+    /opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms || installer_rc=$?
     popd
+    if [ "${installer_rc}" -ne 0 ]; then
+        echo "aks-gpu: nvidia-installer failed (rc=${installer_rc}) for kernel ${KERNEL_NAME}; installer log follows:"
+        cat "${LOG_FILE_NAME}" 2>/dev/null || true
+        return "${installer_rc}"
+    fi
 
     # move nvidia libs to correct location from temporary overlayfs
     cp -a /tmp/overlay/lib64 ${GPU_DEST}/lib64
@@ -223,7 +229,8 @@ if [ "${AKSGPU_BUILD_ONLY}" = "1" ]; then
     # VHD build time: compile + cache + marker only, no device access. Target the kernel the VHD
     # will boot (not the builder's running kernel) so the prebuilt module + marker match at boot.
     KERNEL_NAME="$(target_build_kernel)"
-    echo "aks-gpu: build-only mode (prebuilding kernel module for kernel ${KERNEL_NAME})"
+    echo "aks-gpu: build-only mode (prebuilding kernel module for kernel ${KERNEL_NAME}; builder running $(uname -r))"
+    echo "aks-gpu: kernels with installed headers (build trees):"; ls -ld /lib/modules/*/build 2>/dev/null || echo "  (none found)"
     build_and_mark
     rm -r /opt/gpu
     exit 0
