@@ -124,7 +124,15 @@ build_kernel_module() {
         return "${installer_rc}"
     fi
 
-    # move nvidia libs to correct location from temporary overlayfs
+    # move nvidia libs to correct location from temporary overlayfs. Clear any pre-existing libs
+    # first: when a full build runs over a prebaked VHD whose driver kind/version differs (e.g. a
+    # GRID node booting a CUDA-prebaked image, routed here by the driver_kind guard), the baked
+    # driver's userspace libs are already staged under ${GPU_DEST}/lib64. A plain copy would MERGE
+    # both versions (e.g. libnvidia-ml.so.570.* and .580.*), which breaks NVML for consumers like the
+    # device plugin ("Driver/library version mismatch"). Removing the directory first makes the
+    # staged libs authoritative for exactly the driver we just built. (The skip-build fast path never
+    # reaches here, so a matching prebaked VHD keeps its baked libs untouched.)
+    rm -rf "${GPU_DEST}/lib64/lib64"
     cp -a /tmp/overlay/lib64 ${GPU_DEST}/lib64
 
     # configure system to know about nvidia lib paths
