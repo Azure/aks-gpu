@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-set -euxo pipefail
 
-source /opt/gpu/config.sh
-source /opt/gpu/package_manager_helpers.sh
+# NOTE: `set -euxo pipefail` and the `source`s of the gpu config + package-manager helpers are
+# applied inside main() rather than at top level, so this script can be sourced by the unit tests
+# (test/install.bats) to exercise the individual functions on a GPU-less host without running the
+# install or requiring /opt/gpu to exist. main() is invoked only when the script is executed
+# directly (see the guard at the bottom).
 
 PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 
@@ -35,11 +37,13 @@ ARCH=$(uname -m)
 # normal node boot, where uname -r is already correct).
 target_build_kernel() {
     local d k
-    # newest installed kernel that has a headers/build tree (the VHD's target kernel)
-    k=$(for d in /lib/modules/*/build; do
+    # newest installed kernel that has a headers/build tree (the VHD's target kernel). The modules
+    # root is overridable (AKSGPU_MODULES_ROOT) so the unit tests can point it at a fixture dir.
+    local modules_root="${AKSGPU_MODULES_ROOT:-/lib/modules}"
+    k=$(for d in "${modules_root}"/*/build; do
             [ -d "$d" ] || continue
             d=${d%/build}
-            echo "${d#/lib/modules/}"
+            echo "${d#"${modules_root}"/}"
         done | sort -V | tail -n1)
     if [ -n "$k" ]; then echo "$k"; else uname -r; fi
 }
@@ -62,9 +66,9 @@ cleanup_overlay() {
     fi
     set -e
 }
-# Reset PS4 on exit alongside the overlay cleanup (a single EXIT trap, since a second
-# `trap ... EXIT` would replace the first rather than chain).
-trap 'cleanup_overlay; PS4="+ "' EXIT
+# The EXIT trap that runs cleanup_overlay (and resets PS4) is installed at the start of main(),
+# not here, so that sourcing this script for unit tests neither registers a trap nor tears down
+# mounts when the test process exits.
 
 resolve_runfile() {
     if [[ "${DRIVER_KIND}" == "cuda" ]]; then
@@ -225,41 +229,65 @@ fast_path_ok() {
     modinfo -k "${KERNEL_NAME}" nvidia >/dev/null 2>&1 || return 1
 }
 
-set +euo pipefail
-open_devices="$(lsof /dev/nvidia* 2>/dev/null)"
-echo "Open devices: $open_devices"
-
-open_gridd="$(lsof /usr/bin/nvidia-gridd 2>/dev/null)"
-echo "Open gridd: $open_gridd"
-set -euo pipefail
-
-if [ "${AKSGPU_BUILD_ONLY}" = "1" ]; then
-    # VHD build time: compile + cache + marker only, no device access. Target the kernel the VHD
-    # will boot (not the builder's running kernel) so the prebuilt module + marker match at boot.
-    KERNEL_NAME="$(target_build_kernel)"
-    echo "aks-gpu: build-only mode (prebuilding kernel module for kernel ${KERNEL_NAME}; builder running $(uname -r))"
-    echo "aks-gpu: kernels with installed headers (build trees):"; ls -ld /lib/modules/*/build 2>/dev/null || echo "  (none found)"
-    build_and_mark
+# purge_gpu_cache removes the gpu cache that entrypoint.sh staged under /opt/gpu once install.sh
+# has consumed it. Factored out of the two former inline `rm -r /opt/gpu` calls so the unit tests
+# can stub it when exercising main()'s dispatch.
+purge_gpu_cache() {
     rm -r /opt/gpu
-    exit 0
-fi
+}
 
-install_nvidia_container_toolkit
+# main is the install entrypoint. It is run only when the script is executed directly (the guard
+# at the bottom), so sourcing the script for unit tests loads the functions above without running
+# any install steps. The set-flags and the gpu config/helper sources live here (not at top level)
+# for the same reason.
+main() {
+    set -euxo pipefail
+    # shellcheck source=/dev/null
+    source "${AKSGPU_CONFIG_PATH:-/opt/gpu/config.sh}"
+    # shellcheck source=/dev/null
+    source "${AKSGPU_PMH_PATH:-/opt/gpu/package_manager_helpers.sh}"
+    trap 'cleanup_overlay; PS4="+ "' EXIT
 
-if [ "${AKSGPU_SKIP_KERNEL_BUILD}" = "1" ] && baked_marker_matches && fast_path_ok; then
-    # Prebuilt module is present and valid for this kernel+driver: skip the ~100s recompile.
-    echo "aks-gpu: using kernel module prebuilt in the VHD for kernel ${KERNEL_NAME} (recompile skipped)"
-else
-    if [ "${AKSGPU_SKIP_KERNEL_BUILD}" = "1" ]; then
-        echo "aks-gpu: prebuilt module missing/invalid for ${DRIVER_KIND} ${DRIVER_VERSION} on ${KERNEL_NAME}; building from source"
+    set +euo pipefail
+    open_devices="$(lsof /dev/nvidia* 2>/dev/null)"
+    echo "Open devices: $open_devices"
+
+    open_gridd="$(lsof /usr/bin/nvidia-gridd 2>/dev/null)"
+    echo "Open gridd: $open_gridd"
+    set -euo pipefail
+
+    if [ "${AKSGPU_BUILD_ONLY}" = "1" ]; then
+        # VHD build time: compile + cache + marker only, no device access. Target the kernel the VHD
+        # will boot (not the builder's running kernel) so the prebuilt module + marker match at boot.
+        KERNEL_NAME="$(target_build_kernel)"
+        echo "aks-gpu: build-only mode (prebuilding kernel module for kernel ${KERNEL_NAME}; builder running $(uname -r))"
+        echo "aks-gpu: kernels with installed headers (build trees):"; ls -ld "${AKSGPU_MODULES_ROOT:-/lib/modules}"/*/build 2>/dev/null || echo "  (none found)"
+        build_and_mark
+        purge_gpu_cache
+        exit 0
     fi
-    # No bespoke stale-driver teardown is needed: `nvidia-installer -s` automatically uninstalls
-    # any previously runfile-installed driver -- including a mismatched prebaked one -- and its
-    # DKMS registration before installing the new one. build_and_mark then refreshes the marker
-    # to match what we just built, so subsequent boots take the fast path.
-    build_and_mark
+
+    install_nvidia_container_toolkit
+
+    if [ "${AKSGPU_SKIP_KERNEL_BUILD}" = "1" ] && baked_marker_matches && fast_path_ok; then
+        # Prebuilt module is present and valid for this kernel+driver: skip the ~100s recompile.
+        echo "aks-gpu: using kernel module prebuilt in the VHD for kernel ${KERNEL_NAME} (recompile skipped)"
+    else
+        if [ "${AKSGPU_SKIP_KERNEL_BUILD}" = "1" ]; then
+            echo "aks-gpu: prebuilt module missing/invalid for ${DRIVER_KIND} ${DRIVER_VERSION} on ${KERNEL_NAME}; building from source"
+        fi
+        # No bespoke stale-driver teardown is needed: `nvidia-installer -s` automatically uninstalls
+        # any previously runfile-installed driver -- including a mismatched prebaked one -- and its
+        # DKMS registration before installing the new one. build_and_mark then refreshes the marker
+        # to match what we just built, so subsequent boots take the fast path.
+        build_and_mark
+    fi
+
+    device_init
+
+    purge_gpu_cache
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main
 fi
-
-device_init
-
-rm -r /opt/gpu
