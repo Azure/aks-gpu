@@ -166,14 +166,11 @@ initialize_nvidia_driver() {
     ldconfig
     nvidia-smi
 
-    # install fabricmanager for nvlink based systems
-    if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-        NVIDIA_FM_ARCH=$ARCH
-        if [ "$NVIDIA_FM_ARCH" = "arm64" ]; then
-            # NVIDIA uses the name "SBSA" for ARM64 platforms for the fabric manager. See https://en.wikipedia.org/wiki/Server_Base_System_Architecture
-            NVIDIA_FM_ARCH="sbsa"
-        fi
-        bash /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
+    # install fabricmanager for nvlink based systems, but skip it on arm64:
+    # arm64 = Grace-Blackwell (GB200/GB300), which uses IMEX, not a node-local FM.
+    # (uname -m reports "aarch64" for arm64.)
+    if [[ "${DRIVER_KIND}" == "cuda" && "${ARCH}" != "aarch64" ]]; then
+        bash /opt/gpu/fabricmanager-linux-${ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
     fi
 }
 

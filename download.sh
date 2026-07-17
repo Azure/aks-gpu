@@ -48,8 +48,9 @@ install_fabric_manager () {
     mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 }
 
-if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
+# download fabricmanager for nvlink based systems, but skip it on arm64:
+# arm64 = Grace-Blackwell (GB200/GB300), which uses IMEX, not a node-local FM.
+if [[ "${DRIVER_KIND}" == "cuda" && "${TARGETARCH}" != "arm64" ]]; then
    install_fabric_manager
 fi
 
