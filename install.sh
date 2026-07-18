@@ -179,6 +179,18 @@ configure_nvidia_container_runtime() {
 
     install_nvidia_container_toolkit
 
+    # install nvidia-imex on arm64 (Grace-Blackwell): the cross-node NVLink (MNNVL)
+    # coordinator that GB uses in place of a node-local fabric manager. The binary must be
+    # present on the host so the NVIDIA DRA driver (ComputeDomains) can inject it into its
+    # per-workload IMEX daemon pods. --force-depends: the deb declares nvidia-modprobe,
+    # which is provided by the runfile driver (present on disk) rather than as a deb.
+    # The node-wide nvidia-imex.service stays OFF -- IMEX is orchestrated per ComputeDomain
+    # by DRA, not run cluster-wide from the host.
+    if [[ "${DRIVER_KIND}" == "cuda" && "${ARCH}" == "aarch64" ]]; then
+        dpkg -i --force-depends /opt/gpu/nvidia-imex_*_arm64.deb
+        systemctl disable --now nvidia-imex.service 2>/dev/null || true
+    fi
+
     mkdir -p /etc/containerd/config.d
     cp /opt/gpu/10-nvidia-runtime.toml /etc/containerd/config.d/10-nvidia-runtime.toml
 
