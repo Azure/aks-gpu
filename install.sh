@@ -16,7 +16,7 @@ PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 #   AKSGPU_SKIP_KERNEL_BUILD=1 -> the kernel module + libs were prebuilt into the VHD for
 #                                 this exact kernel+driver; skip recompilation and only run
 #                                 the device-dependent steps at node boot.
-#   (neither set)              -> legacy behaviour: full compile + device init in one shot.
+#   (neither set)              -> legacy behaviour: full compile + node initialization in one shot.
 AKSGPU_BUILD_ONLY="${AKSGPU_BUILD_ONLY:-0}"
 AKSGPU_SKIP_KERNEL_BUILD="${AKSGPU_SKIP_KERNEL_BUILD:-0}"
 
@@ -150,9 +150,11 @@ build_kernel_module() {
     modinfo -k "$KERNEL_NAME" nvidia
 }
 
-# device_init runs the steps that require the physical GPU and therefore must execute at node
-# boot, regardless of whether the kernel module was prebuilt into the VHD.
-device_init() {
+# initialize_nvidia_driver runs the steps that require the physical GPU and therefore must
+# execute at node boot, regardless of whether the kernel module was prebuilt into the VHD.
+# Keep this ahead of the container toolkit install: the toolkit package immediately starts
+# nvidia-cdi-refresh, whose nvidia-smi readiness check requires these userspace libraries.
+initialize_nvidia_driver() {
     nvidia-modprobe -u -c0
 
     # configure persistence daemon
@@ -161,6 +163,7 @@ device_init() {
     # notable on large VM sizes with multiple GPUs
     # especially when nvidia-smi process is in CPU cgroup
     cp -r /usr/bin/lib64/lib64/* "/usr/lib/${ARCH}-linux-gnu/"
+    ldconfig
     nvidia-smi
 
     # install fabricmanager for nvlink based systems
@@ -172,13 +175,24 @@ device_init() {
         fi
         bash /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
     fi
+}
+
+configure_nvidia_container_runtime() {
+    local nvidia_ctk_bin="${AKSGPU_NVIDIA_CTK_BIN:-/usr/bin/nvidia-ctk}"
+
+    install_nvidia_container_toolkit
 
     mkdir -p /etc/containerd/config.d
     cp /opt/gpu/10-nvidia-runtime.toml /etc/containerd/config.d/10-nvidia-runtime.toml
 
     mkdir -p "$(dirname /lib/udev/rules.d/71-nvidia-dev-char.rules)"
     cp /opt/gpu/71-nvidia-char-dev.rules /lib/udev/rules.d/71-nvidia-dev-char.rules
-    /usr/bin/nvidia-ctk system create-dev-char-symlinks --create-all
+    "$nvidia_ctk_bin" system create-dev-char-symlinks --create-all
+
+    # The package post-install starts this oneshot too, but require a final successful run after
+    # all runtime/device setup. A successful oneshot is inactive afterward, so its exit status
+    # rather than `is-active` is the health signal.
+    systemctl restart nvidia-cdi-refresh.service
 }
 
 write_dkms_marker() {
@@ -222,7 +236,7 @@ build_and_mark() {
 # fast_path_ok opportunistically validates a prebaked module without recompiling. It returns
 # non-zero (instead of aborting under `set -e`) so a corrupt or incomplete prebake falls back to
 # a full build rather than bricking the node. The authoritative device check still happens later
-# in device_init (nvidia-modprobe + nvidia-smi).
+# in initialize_nvidia_driver (nvidia-modprobe + nvidia-smi).
 fast_path_ok() {
     ldconfig || return 1
     dkms status >/dev/null 2>&1 || return 1
@@ -267,8 +281,6 @@ main() {
         exit 0
     fi
 
-    install_nvidia_container_toolkit
-
     if [ "${AKSGPU_SKIP_KERNEL_BUILD}" = "1" ] && baked_marker_matches && fast_path_ok; then
         # Prebuilt module is present and valid for this kernel+driver: skip the ~100s recompile.
         echo "aks-gpu: using kernel module prebuilt in the VHD for kernel ${KERNEL_NAME} (recompile skipped)"
@@ -283,7 +295,8 @@ main() {
         build_and_mark
     fi
 
-    device_init
+    initialize_nvidia_driver
+    configure_nvidia_container_runtime
 
     purge_gpu_cache
 }
