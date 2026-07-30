@@ -259,7 +259,7 @@ EOF
     [ "$status" -eq 0 ]
     run cat "${TEST_TMP}/runtime-order"
     [ "$status" -eq 0 ]
-    [ "$output" = $'install-toolkit\ncontainerd-config\nudev-rule\nnvidia-ctk\nsystemctl restart nvidia-cdi-refresh.service' ]
+    [ "$output" = $'install-toolkit\ncontainerd-config\nudev-rule\nnvidia-ctk\nsystemctl reset-failed nvidia-cdi-refresh.service nvidia-cdi-refresh.path\nsystemctl restart nvidia-cdi-refresh.service' ]
 }
 
 @test "configure_nvidia_container_runtime propagates a failed final CDI refresh" {

@@ -191,7 +191,9 @@ configure_nvidia_container_runtime() {
 
     # The package post-install starts this oneshot too, but require a final successful run after
     # all runtime/device setup. A successful oneshot is inactive afterward, so its exit status
-    # rather than `is-active` is the health signal.
+    # rather than `is-active` is the health signal. Clear the package-time start counter first:
+    # the post-install and path unit can otherwise consume the service's five-start budget.
+    systemctl reset-failed nvidia-cdi-refresh.service nvidia-cdi-refresh.path 2>/dev/null || true
     systemctl restart nvidia-cdi-refresh.service
 }
 
