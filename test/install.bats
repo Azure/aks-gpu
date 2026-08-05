@@ -61,9 +61,17 @@ _has_sort_v() { printf '1\n2\n' | sort -V >/dev/null 2>&1; }
 # Each stub records that it ran via a sentinel file.
 _stub_dispatch() {
     cleanup_overlay() { :; }
-    install_nvidia_container_toolkit() { :; }
     build_and_mark() { echo "BUILD_AND_MARK"; touch "${TEST_TMP}/build_and_mark.ran"; }
-    device_init() { echo "DEVICE_INIT"; touch "${TEST_TMP}/device_init.ran"; }
+    initialize_nvidia_driver() {
+        echo "INITIALIZE_NVIDIA_DRIVER"
+        echo "initialize_nvidia_driver" >> "${TEST_TMP}/dispatch-order"
+        touch "${TEST_TMP}/initialize_nvidia_driver.ran"
+    }
+    configure_nvidia_container_runtime() {
+        echo "CONFIGURE_NVIDIA_CONTAINER_RUNTIME"
+        echo "configure_nvidia_container_runtime" >> "${TEST_TMP}/dispatch-order"
+        touch "${TEST_TMP}/configure_nvidia_container_runtime.ran"
+    }
     purge_gpu_cache() { :; }
 }
 
@@ -164,7 +172,7 @@ _stub_dispatch() {
 
 # --- mode dispatch -------------------------------------------------------
 
-@test "dispatch build-only: builds+marks then skips device init" {
+@test "dispatch build-only: builds+marks then skips node-time driver and runtime initialization" {
     _has_sort_v || skip "build-only resolves target kernel via GNU sort -V (runs on the Linux CI)"
     _stub_dispatch
     mkdir -p "${AKSGPU_MODULES_ROOT}/6.8.0-1059-azure/build"
@@ -173,10 +181,11 @@ _stub_dispatch() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"build-only mode"* ]]
     [ -f "${TEST_TMP}/build_and_mark.ran" ]
-    [ ! -f "${TEST_TMP}/device_init.ran" ]
+    [ ! -f "${TEST_TMP}/initialize_nvidia_driver.ran" ]
+    [ ! -f "${TEST_TMP}/configure_nvidia_container_runtime.ran" ]
 }
 
-@test "dispatch install-skip-build with matching marker: skips recompile, runs device init" {
+@test "dispatch install-skip-build with matching marker: initializes the driver before the runtime" {
     _stub_dispatch
     _stub_bin ldconfig 0; _stub_bin dkms 0; _stub_bin modinfo 0
     PATH="${TEST_TMP}/bin:$PATH"
@@ -187,7 +196,11 @@ _stub_dispatch() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"recompile skipped"* ]]
     [ ! -f "${TEST_TMP}/build_and_mark.ran" ]
-    [ -f "${TEST_TMP}/device_init.ran" ]
+    [ -f "${TEST_TMP}/initialize_nvidia_driver.ran" ]
+    [ -f "${TEST_TMP}/configure_nvidia_container_runtime.ran" ]
+    run cat "${TEST_TMP}/dispatch-order"
+    [ "$status" -eq 0 ]
+    [ "$output" = $'initialize_nvidia_driver\nconfigure_nvidia_container_runtime' ]
 }
 
 @test "dispatch install-skip-build with mismatched marker: falls back to a full build" {
@@ -202,5 +215,63 @@ _stub_dispatch() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"building from source"* ]]
     [ -f "${TEST_TMP}/build_and_mark.ran" ]
-    [ -f "${TEST_TMP}/device_init.ran" ]
+    [ -f "${TEST_TMP}/initialize_nvidia_driver.ran" ]
+    [ -f "${TEST_TMP}/configure_nvidia_container_runtime.ran" ]
+}
+
+# --- CDI lifecycle ordering ---------------------------------------------
+
+@test "initialize_nvidia_driver refreshes the linker cache before nvidia-smi" {
+    DRIVER_KIND="grid"
+    nvidia-modprobe() { echo "nvidia-modprobe" >> "${TEST_TMP}/driver-order"; }
+    cp() { echo "copy-libraries" >> "${TEST_TMP}/driver-order"; }
+    ldconfig() { echo "ldconfig" >> "${TEST_TMP}/driver-order"; }
+    nvidia-smi() { echo "nvidia-smi" >> "${TEST_TMP}/driver-order"; }
+
+    run initialize_nvidia_driver
+
+    [ "$status" -eq 0 ]
+    run cat "${TEST_TMP}/driver-order"
+    [ "$status" -eq 0 ]
+    [ "$output" = $'nvidia-modprobe\ncopy-libraries\nldconfig\nnvidia-smi' ]
+}
+
+@test "configure_nvidia_container_runtime installs the toolkit before the final CDI refresh" {
+    install_nvidia_container_toolkit() { echo "install-toolkit" >> "${TEST_TMP}/runtime-order"; }
+    mkdir() { :; }
+    cp() {
+        case "$1" in
+            */10-nvidia-runtime.toml) echo "containerd-config" >> "${TEST_TMP}/runtime-order" ;;
+            */71-nvidia-char-dev.rules) echo "udev-rule" >> "${TEST_TMP}/runtime-order" ;;
+        esac
+    }
+    dirname() { command dirname "$@"; }
+    systemctl() { echo "systemctl $*" >> "${TEST_TMP}/runtime-order"; }
+    export AKSGPU_NVIDIA_CTK_BIN="${TEST_TMP}/bin/nvidia-ctk"
+    cat > "${AKSGPU_NVIDIA_CTK_BIN}" <<EOF
+#!/usr/bin/env bash
+echo "nvidia-ctk" >> "${TEST_TMP}/runtime-order"
+EOF
+    chmod +x "${AKSGPU_NVIDIA_CTK_BIN}"
+
+    run configure_nvidia_container_runtime
+
+    [ "$status" -eq 0 ]
+    run cat "${TEST_TMP}/runtime-order"
+    [ "$status" -eq 0 ]
+    [ "$output" = $'install-toolkit\ncontainerd-config\nudev-rule\nnvidia-ctk\nsystemctl reset-failed nvidia-cdi-refresh.service nvidia-cdi-refresh.path\nsystemctl restart nvidia-cdi-refresh.service' ]
+}
+
+@test "configure_nvidia_container_runtime propagates a failed final CDI refresh" {
+    install_nvidia_container_toolkit() { :; }
+    mkdir() { :; }
+    cp() { :; }
+    dirname() { command dirname "$@"; }
+    systemctl() { return 1; }
+    export AKSGPU_NVIDIA_CTK_BIN="${TEST_TMP}/bin/nvidia-ctk"
+    _stub_bin nvidia-ctk 0
+
+    run configure_nvidia_container_runtime
+
+    [ "$status" -ne 0 ]
 }
