@@ -25,9 +25,9 @@ fi
 
 # Map the requested action to the install mode passed to install.sh. All three install
 # variants stage the same gpu cache files; only the env var handed to install.sh differs.
-#   install            -> full compile + device init (legacy behaviour)
+#   install            -> full compile + node initialization (legacy behaviour)
 #   build-only         -> compile/cache the kernel module only (VHD build, no GPU)
-#   install-skip-build -> device init only, reusing the module prebuilt into the VHD
+#   install-skip-build -> node initialization only, reusing the module prebuilt into the VHD
 GPU_INSTALL_MODE_ENV=""
 case "${1}" in
     build-only)         GPU_INSTALL_MODE_ENV="AKSGPU_BUILD_ONLY=1" ;;

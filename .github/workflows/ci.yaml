@@ -224,3 +224,16 @@ jobs:
           run: |
             rm -rf /tmp/.buildx-cache
             mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Shellcheck prebake scripts
+        run: shellcheck -S warning install.sh entrypoint.sh
+      - name: Install bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+      - name: Run install.sh unit tests
+        run: bats test/install.bats
