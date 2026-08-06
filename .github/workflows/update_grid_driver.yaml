@@ -32,11 +32,11 @@ jobs:
       - name: Check for changes
         id: git-check
         run: |
-          git diff --exit-code driver_config.yml || echo "changes=true" >> $GITHUB_OUTPUT
+          git diff --exit-code driver_config.yml || echo "changes=true" >> "$GITHUB_OUTPUT"
           NEW_VERSION=$(git diff driver_config.yml | grep '^\+  version: ' | tail -n1 | cut -d'"' -f2)
           if [ ! -z "$NEW_VERSION" ]; then
-            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+            echo "changes=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Azure login
@@ -51,13 +51,16 @@ jobs:
         id: get-private-key
         if: steps.git-check.outputs.changes == 'true'
         uses: azure/cli@v3
+        env:
+          AZURE_KV_NAME: ${{ secrets.AZURE_KV_NAME }}
+          APP_PRIVATE_KEY_SECRET_NAME: ${{ secrets.APP_PRIVATE_KEY_SECRET_NAME }}
         with:
           azcliversion: latest
           inlineScript: |
             # https://github.com/actions/create-github-app-token?tab=readme-ov-file#inputs
-            private_key=$(az keyvault secret show --vault-name ${{ secrets.AZURE_KV_NAME }} -n ${{ secrets.APP_PRIVATE_KEY_SECRET_NAME }} --query value -o tsv | sed 's/$/\\n/g' | tr -d '\n' | head -c -2) &> /dev/null
+            private_key=$(az keyvault secret show --vault-name "$AZURE_KV_NAME" -n "$APP_PRIVATE_KEY_SECRET_NAME" --query value -o tsv | sed 's/$/\\n/g' | tr -d '\n' | head -c -2) &> /dev/null
             echo "::add-mask::$private_key"
-            echo "private-key=$private_key" >> $GITHUB_OUTPUT
+            echo "private-key=$private_key" >> "$GITHUB_OUTPUT"
 
       - name: Generate GitHub token
         if: steps.git-check.outputs.changes == 'true'

@@ -24,10 +24,16 @@ jobs:
           fetch-depth: 0
       - name: Load CUDA config
         id: load_config
+        env:
+          CONFIG_KEY: ${{ matrix.config_key }}
         run: |
-          cuda_version=$(yq e '.${{ matrix.config_key }}.version' driver_config.yml)
+          cuda_version=$(yq e ".${CONFIG_KEY}.version" driver_config.yml)
+          if [[ ! "$cuda_version" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+            echo "::error::Refusing unexpected CUDA driver version: $cuda_version"
+            exit 1
+          fi
           echo "CUDA_VERSION=$cuda_version"
-          echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT
+          echo "cuda_version=$cuda_version" >> "$GITHUB_OUTPUT"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
       - name: Set up Docker Buildx
@@ -51,16 +57,19 @@ jobs:
             ${{ runner.os }}-buildx-${{ matrix.image_repo }}-
       - name: Generate timestamp
         id: timestamp
-        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> "$GITHUB_OUTPUT"
       - uses: paulhatch/semantic-version@v6.0.2
         with:
           bump_each_commit: false
           version_format: "${{ steps.load_config.outputs.cuda_version }}-${{ steps.timestamp.outputs.timestamp }}"
         id: semver
       - name: 'Check version'
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+          VERSION_TAG: ${{ steps.semver.outputs.version_tag }}
         run: |
-          echo "version is ${{ steps.semver.outputs.version }}"
-          echo "version is ${{ steps.semver.outputs.version_tag }}"
+          echo "version is $VERSION"
+          echo "version is $VERSION_TAG"
       - name: 'Azure CLI login'
         uses: azure/login@v3
         with:
@@ -68,14 +77,20 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: 'Build and Push'
+        env:
+          DRIVER_VERSION: ${{ steps.load_config.outputs.cuda_version }}
+          IMAGE_REPO: ${{ matrix.image_repo }}
+          REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER }}
+          VERSION: ${{ steps.semver.outputs.version }}
         run: |
           set -x
           echo "tag is: "
-          echo ${{ steps.semver.outputs.version }}
-          docker buildx build --platform linux/arm64/v8,linux/amd64 --build-arg DRIVER_KIND=cuda --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }} .
+          echo "$VERSION"
+          image_ref="${REGISTRY_SERVER}/public/aks/${IMAGE_REPO}:${VERSION}"
+          docker buildx build --platform linux/arm64/v8,linux/amd64 --build-arg DRIVER_KIND=cuda --build-arg "DRIVER_VERSION=${DRIVER_VERSION}" --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t "$image_ref" .
           docker images
-          az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
-          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }}
+          az acr login -n "$REGISTRY_SERVER"
+          docker push "$image_ref"
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
@@ -95,10 +110,16 @@ jobs:
           fetch-depth: 0
       - name: Load CUDA config
         id: load_config
+        env:
+          CONFIG_KEY: ${{ matrix.config_key }}
         run: |
-          cuda_version=$(yq e '.${{ matrix.config_key }}.version' driver_config.yml)
+          cuda_version=$(yq e ".${CONFIG_KEY}.version" driver_config.yml)
+          if [[ ! "$cuda_version" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+            echo "::error::Refusing unexpected CUDA driver version: $cuda_version"
+            exit 1
+          fi
           echo "CUDA_VERSION=$cuda_version"
-          echo "cuda_version=$cuda_version" >> $GITHUB_OUTPUT      
+          echo "cuda_version=$cuda_version" >> "$GITHUB_OUTPUT"
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Cache Docker layers
@@ -110,16 +131,19 @@ jobs:
             ${{ runner.os }}-buildx-${{ matrix.image_repo }}-
       - name: Generate timestamp
         id: timestamp
-        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> "$GITHUB_OUTPUT"
       - uses: paulhatch/semantic-version@v6.0.2
         with:
           bump_each_commit: false
           version_format: "${{ steps.load_config.outputs.cuda_version }}-${{ steps.timestamp.outputs.timestamp }}"
         id: semver
       - name: 'Check version'
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+          VERSION_TAG: ${{ steps.semver.outputs.version_tag }}
         run: |
-          echo "version is ${{ steps.semver.outputs.version }}"
-          echo "version is ${{ steps.semver.outputs.version_tag }}"
+          echo "version is $VERSION"
+          echo "version is $VERSION_TAG"
       - name: 'Azure CLI login'
         uses: azure/login@v3
         with:
@@ -127,14 +151,20 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: 'Build and Push'
+        env:
+          DRIVER_VERSION: ${{ steps.load_config.outputs.cuda_version }}
+          IMAGE_REPO: ${{ matrix.image_repo }}
+          REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER }}
+          VERSION: ${{ steps.semver.outputs.version }}
         run: |
           set -x
           echo "tag is: "
-          echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_KIND=cuda --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.cuda_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }} .
+          echo "$VERSION"
+          image_ref="${REGISTRY_SERVER}/public/aks/${IMAGE_REPO}:${VERSION}"
+          docker buildx build --build-arg DRIVER_KIND=cuda --build-arg "DRIVER_VERSION=${DRIVER_VERSION}" --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t "$image_ref" .
           docker images
-          az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
-          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }}
+          az acr login -n "$REGISTRY_SERVER"
+          docker push "$image_ref"
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
@@ -154,18 +184,28 @@ jobs:
           fetch-depth: 0
       - name: Load GRID config
         id: load_config
+        env:
+          CONFIG_KEY: ${{ matrix.config_key }}
         run: |
-            grid_version=$(yq e '.${{ matrix.config_key }}.version' driver_config.yml)
-            grid_url=$(yq e '.${{ matrix.config_key }}.url' driver_config.yml)
+            grid_version=$(yq e ".${CONFIG_KEY}.version" driver_config.yml)
+            grid_url=$(yq e ".${CONFIG_KEY}.url" driver_config.yml)
+            if [[ ! "$grid_version" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+              echo "::error::Refusing unexpected GRID driver version: $grid_version"
+              exit 1
+            fi
+            if [[ ! "$grid_url" =~ ^https://[A-Za-z0-9._~:/?#@%+=-]+$ ]]; then
+              echo "::error::Refusing unexpected GRID driver URL: $grid_url"
+              exit 1
+            fi
             echo "GRID_VERSION=$grid_version"
             echo "GRID_URL=$grid_url"
-            echo "grid_version=$grid_version" >> $GITHUB_OUTPUT
-            echo "grid_url=$grid_url" >> $GITHUB_OUTPUT
+            echo "grid_version=$grid_version" >> "$GITHUB_OUTPUT"
+            echo "grid_url=$grid_url" >> "$GITHUB_OUTPUT"
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Generate timestamp
         id: timestamp
-        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> "$GITHUB_OUTPUT"
       - uses: paulhatch/semantic-version@v6.0.2
       - name: Cache Docker layers
         uses: actions/cache@v5
@@ -180,9 +220,12 @@ jobs:
           version_format: "${{ steps.load_config.outputs.grid_version }}-${{ steps.timestamp.outputs.timestamp }}"
         id: semver
       - name: 'Check version'
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+          VERSION_TAG: ${{ steps.semver.outputs.version_tag }}
         run: |
-          echo "version is ${{ steps.semver.outputs.version }}"
-          echo "version is ${{ steps.semver.outputs.version_tag }}"
+          echo "version is $VERSION"
+          echo "version is $VERSION_TAG"
       - name: 'Azure CLI login'
         uses: azure/login@v3
         with:
@@ -190,14 +233,21 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: 'Build and Push'
+        env:
+          DRIVER_URL: ${{ steps.load_config.outputs.grid_url }}
+          DRIVER_VERSION: ${{ steps.load_config.outputs.grid_version }}
+          IMAGE_REPO: ${{ matrix.image_repo }}
+          REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER }}
+          VERSION: ${{ steps.semver.outputs.version }}
         run: |
           set -x
           echo "tag is: "
-          echo ${{ steps.semver.outputs.version }}
-          docker buildx build --build-arg DRIVER_URL=${{ steps.load_config.outputs.grid_url }} --build-arg DRIVER_KIND=grid --build-arg DRIVER_VERSION=${{ steps.load_config.outputs.grid_version }} --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }} .
+          echo "$VERSION"
+          image_ref="${REGISTRY_SERVER}/public/aks/${IMAGE_REPO}:${VERSION}"
+          docker buildx build --build-arg "DRIVER_URL=${DRIVER_URL}" --build-arg DRIVER_KIND=grid --build-arg "DRIVER_VERSION=${DRIVER_VERSION}" --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t "$image_ref" .
           docker images
-          az acr login -n ${{ secrets.AZURE_REGISTRY_SERVER }}
-          docker push ${{ secrets.AZURE_REGISTRY_SERVER }}/public/aks/${{ matrix.image_repo }}:${{ steps.semver.outputs.version }}
+          az acr login -n "$REGISTRY_SERVER"
+          docker push "$image_ref"
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
