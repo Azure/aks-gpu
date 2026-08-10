@@ -6,6 +6,9 @@ pushallcuda: (pushcuda) (pushcudalts)
 
 pushallgrid: (pushgrid) (pushgridv20)
 
+pushrocm: (buildrocm)
+	docker push {{ registry }}/aks-gpu:$(yq e '.rocm.version' driver_config.yml)-rocm
+
 pushcuda: (buildcuda)
 	docker push {{ registry }}/aks-gpu:$(yq e '.cuda.version' driver_config.yml)-cuda
 
@@ -29,3 +32,6 @@ buildcuda:
 
 buildcudalts:
 	docker build --build-arg DRIVER_KIND=cuda --build-arg DRIVER_VERSION=$(yq e '.cuda_lts.version' driver_config.yml) -f Dockerfile -t {{ registry }}/aks-gpu:$(yq e '.cuda_lts.version' driver_config.yml)-cuda-lts .
+
+buildrocm:
+	docker build --build-arg distro=22.04 --build-arg DRIVER_KIND=rocm --build-arg DRIVER_VERSION=$(yq e '.rocm.version' driver_config.yml) -f Dockerfile -t {{ registry }}/aks-gpu:$(yq e '.rocm.version' driver_config.yml)-rocm .

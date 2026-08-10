@@ -24,6 +24,7 @@ DRIVER_KIND="${DRIVER_KIND:-cuda}"
 GPU_DEST="${GPU_DEST:-/usr/bin}"
 NVIDIA_CONTAINER_TOOLKIT_VER="1.19.1"
 NVIDIA_PACKAGES="pkg"
+AMD_PACKAGES="amd-pkg"
 EOF
     printf ':\n' > "${AKSGPU_PMH_PATH}"
 
@@ -71,6 +72,14 @@ _stub_dispatch() {
         echo "CONFIGURE_NVIDIA_CONTAINER_RUNTIME"
         echo "configure_nvidia_container_runtime" >> "${TEST_TMP}/dispatch-order"
         touch "${TEST_TMP}/configure_nvidia_container_runtime.ran"
+    }
+    initialize_amd_driver() {
+        echo "initialize_amd_driver" >> "${TEST_TMP}/dispatch-order"
+        touch "${TEST_TMP}/initialize_amd_driver.ran"
+    }
+    configure_amd_driver() {
+        echo "configure_amd_driver" >> "${TEST_TMP}/dispatch-order"
+        touch "${TEST_TMP}/configure_amd_driver.ran"
     }
     purge_gpu_cache() { :; }
 }
@@ -152,6 +161,68 @@ _stub_dispatch() {
     [ "$status" -ne 0 ]
 }
 
+@test "fast_path_ok validates the AMDGPU module for rocm" {
+    _stub_bin ldconfig 0; _stub_bin dkms 0
+    cat > "${TEST_TMP}/bin/modinfo" <<EOF
+#!/usr/bin/env bash
+[[ "\$*" == *"amdgpu"* ]]
+EOF
+    chmod +x "${TEST_TMP}/bin/modinfo"
+    _stub_bin rocm-smi 0
+    PATH="${TEST_TMP}/bin:$PATH"
+    DRIVER_KIND="rocm"
+    AKSGPU_ROCM_SMI_BIN="${TEST_TMP}/bin/rocm-smi"
+    run fast_path_ok
+    [ "$status" -eq 0 ]
+}
+
+# --- AMD driver lifecycle ------------------------------------------------
+
+@test "build_kernel_module dispatches rocm to the AMD builder" {
+    build_amd_kernel_module() { echo amd; }
+    build_nvidia_kernel_module() { echo nvidia; }
+    DRIVER_KIND="rocm"
+    run build_kernel_module
+    [ "$status" -eq 0 ]
+    [ "$output" = "amd" ]
+}
+
+@test "initialize_amd_driver loads AMDGPU and validates ROCm" {
+    modprobe() { echo "modprobe $*" >> "${TEST_TMP}/amd-order"; }
+    cat > "${TEST_TMP}/bin/rocminfo" <<EOF
+#!/usr/bin/env bash
+echo rocminfo >> "${TEST_TMP}/amd-order"
+EOF
+    cat > "${TEST_TMP}/bin/rocm-smi" <<EOF
+#!/usr/bin/env bash
+echo rocm-smi >> "${TEST_TMP}/amd-order"
+EOF
+    chmod +x "${TEST_TMP}/bin/rocminfo" "${TEST_TMP}/bin/rocm-smi"
+    AKSGPU_ROCMINFO_BIN="${TEST_TMP}/bin/rocminfo"
+    AKSGPU_ROCM_SMI_BIN="${TEST_TMP}/bin/rocm-smi"
+
+    run initialize_amd_driver
+
+    [ "$status" -eq 0 ]
+    run cat "${TEST_TMP}/amd-order"
+    [ "$status" -eq 0 ]
+    [ "$output" = $'modprobe -r hyperv_drm\nmodprobe amdgpu ip_block_mask=0x7f\nrocminfo\nrocm-smi' ]
+}
+
+@test "configure_amd_driver installs and enables the boot service" {
+    install() { echo "install $*" >> "${TEST_TMP}/amd-config-order"; }
+    systemctl() { echo "systemctl $*" >> "${TEST_TMP}/amd-config-order"; }
+
+    run configure_amd_driver
+
+    [ "$status" -eq 0 ]
+    run cat "${TEST_TMP}/amd-config-order"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"install -m 0644 /opt/gpu/rocm-amdgpu.service /etc/systemd/system/rocm-amdgpu.service"* ]]
+    [[ "$output" == *"systemctl daemon-reload"* ]]
+    [[ "$output" == *"systemctl enable rocm-amdgpu.service"* ]]
+}
+
 # --- target kernel selection --------------------------------------------
 
 @test "target_build_kernel picks the newest kernel that has a build tree" {
@@ -217,6 +288,23 @@ _stub_dispatch() {
     [ -f "${TEST_TMP}/build_and_mark.ran" ]
     [ -f "${TEST_TMP}/initialize_nvidia_driver.ran" ]
     [ -f "${TEST_TMP}/configure_nvidia_container_runtime.ran" ]
+}
+
+@test "dispatch rocm initializes AMD without configuring NVIDIA" {
+    _stub_dispatch
+    DRIVER_KIND="rocm"
+    AKSGPU_BUILD_ONLY=0; AKSGPU_SKIP_KERNEL_BUILD=0
+
+    run main
+
+    [ "$status" -eq 0 ]
+    [ -f "${TEST_TMP}/build_and_mark.ran" ]
+    [ -f "${TEST_TMP}/initialize_amd_driver.ran" ]
+    [ -f "${TEST_TMP}/configure_amd_driver.ran" ]
+    [ ! -f "${TEST_TMP}/initialize_nvidia_driver.ran" ]
+    [ ! -f "${TEST_TMP}/configure_nvidia_container_runtime.ran" ]
+    run cat "${TEST_TMP}/dispatch-order"
+    [ "$output" = $'initialize_amd_driver\nconfigure_amd_driver' ]
 }
 
 # --- CDI lifecycle ordering ---------------------------------------------

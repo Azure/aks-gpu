@@ -16,3 +16,7 @@ grid_v20:
   # We do not support GRID drivers on ARM64 architecture.
   # GRID v20 is required for RTX PRO 6000 Blackwell Server Edition v6 SKUs.
   url: "https://download.microsoft.com/download/51239696-ec04-4c02-a6b3-1d9c608fb57c/NVIDIA-Linux-x86_64-595.58.03-grid-azure.run"
+
+rocm:
+  # ROCm and AMDGPU packages are downloaded from AMD's official repositories.
+  version: "6.2.4"

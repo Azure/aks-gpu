@@ -7,6 +7,42 @@ source /opt/gpu/config.sh
 workdir="$(mktemp -d)"
 pushd "$workdir" || exit
 
+download_amd_packages() {
+    if [[ "${TARGETARCH}" != "amd64" ]]; then
+        echo "ROCm driver images are only supported on amd64"
+        exit 1
+    fi
+    if [[ "${VERSION_ID}" != "22.04" ]]; then
+        echo "ROCm ${DRIVER_VERSION} requires Ubuntu 22.04; found ${VERSION_ID}"
+        exit 1
+    fi
+
+    install -d -m 0755 /etc/apt/keyrings /opt/gpu/amd-packages/partial
+    curl -fsSL https://repo.radeon.com/rocm/rocm.gpg.key |
+        gpg --dearmor -o /etc/apt/keyrings/rocm.gpg
+    chmod 0644 /etc/apt/keyrings/rocm.gpg
+
+    cat > /etc/apt/sources.list.d/amdgpu.list <<EOF
+deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/amdgpu/${DRIVER_VERSION}/ubuntu jammy main
+EOF
+    cat > /etc/apt/sources.list.d/rocm.list <<EOF
+deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/${DRIVER_VERSION} jammy main
+EOF
+
+    apt-get update
+    apt-get install --download-only -y --no-install-recommends \
+        -o Dir::Cache::archives=/opt/gpu/amd-packages \
+        ${AMD_PACKAGES}
+    rm -rf /opt/gpu/amd-packages/partial
+}
+
+if [[ "${DRIVER_KIND}" == "rocm" ]]; then
+    download_amd_packages
+    popd || exit
+    rm -r "$workdir"
+    exit 0
+fi
+
 NVIDIA_DRIVER_ARCH=$TARGETARCH
 if [ $TARGETARCH = "arm64" ]; then
     NVIDIA_DRIVER_ARCH="aarch64"

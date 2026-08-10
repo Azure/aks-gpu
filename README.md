@@ -1,15 +1,30 @@
 # Driver container image for AKS VHD
 
-This repo provides steps to build a container image with all components required for 
-Kubernetes Nvidia GPU integration. Run it as a privileged container in the host PID namespace.
-It will enter the host mount namespace and install the nvidia drivers, container runtime, 
-and associated libraries on the host, validating their functionality
+This repo provides steps to build container images with the components required for
+Kubernetes NVIDIA or AMD GPU integration. Run an image as a privileged container in the host
+PID namespace. It enters the host mount namespace, installs the selected GPU driver and
+associated libraries, and validates their functionality.
 
 ## Build
 ```
 docker build -f Dockerfile  --build-arg DRIVER_VERSION=??? -t docker.io/alexeldeib/aks-gpu:latest .
 docker push docker.io/alexeldeib/aks-gpu:latest
 ``` 
+
+Build the AMD ROCm image:
+
+```bash
+docker build \
+  --build-arg distro=22.04 \
+  --build-arg DRIVER_KIND=rocm \
+  --build-arg DRIVER_VERSION=6.2.4 \
+  -t docker.io/alexeldeib/aks-gpu:6.2.4-rocm .
+```
+
+The ROCm image currently supports amd64 Ubuntu 22.04 hosts. It caches AMD's official
+`amdgpu-dkms`, firmware, ROCm-SMI, and `rocminfo` packages. At install time it builds the
+AMDGPU module for the target kernel, loads it with the Azure MI300X parameters, and installs
+a persistent `rocm-amdgpu.service`.
 
 #### For DRIVER_VERSION, following versions are known to work :
 - 470.82.01
@@ -29,6 +44,13 @@ docker run -it --privileged --net=host --pid=host -v /opt/gpu:/mnt/gpu -v /opt/a
 ```
 
 Note the `--with-ns pid:/proc/1/ns/pid` and `--privileged`, as well as the bind mounts, these are key.
+
+Verify an AMD installation with:
+
+```bash
+/opt/rocm/bin/rocminfo
+/opt/rocm/bin/rocm-smi
+```
 
 ## Fabric manager installation
 

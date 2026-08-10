@@ -14,6 +14,7 @@ COPY 10-nvidia-runtime.toml 10-nvidia-runtime.toml
 COPY 71-nvidia-char-dev.rules 71-nvidia-char-dev.rules
 COPY blacklist-nouveau.conf blacklist-nouveau.conf
 COPY nvidia-persistenced.service nvidia-persistenced.service
+COPY rocm-amdgpu.service rocm-amdgpu.service
 
 COPY fm_run_package_installer.sh fm_run_package_installer.sh
 COPY config.sh config.sh

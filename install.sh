@@ -96,10 +96,10 @@ install_nvidia_container_toolkit() {
     use_package_manager_with_retries wait_for_dpkg_lock install_cached_nvidia_packages 10 3
 }
 
-# build_kernel_module compiles the NVIDIA kernel module (the expensive step) and stages the
+# build_nvidia_kernel_module compiles the NVIDIA kernel module (the expensive step) and stages the
 # userspace libraries. It performs NO device access, so it is safe to run at VHD build time on
 # a host without a GPU.
-build_kernel_module() {
+build_nvidia_kernel_module() {
     # blacklist nouveau driver, nvidia driver dependency
     cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf
     update-initramfs -u
@@ -150,6 +150,31 @@ build_kernel_module() {
     modinfo -k "$KERNEL_NAME" nvidia
 }
 
+install_cached_amd_packages() {
+    apt-get install -y --allow-downgrades /opt/gpu/amd-packages/*.deb
+}
+
+# AMD's packages install the userspace ROCm stack and register the out-of-tree AMDGPU module
+# with DKMS. Explicitly build for KERNEL_NAME because the VHD builder can still be running an
+# older kernel while preparing the kernel that nodes will boot.
+build_amd_kernel_module() {
+    use_package_manager_with_retries wait_for_apt_locks install_cached_amd_packages 10 3
+    dkms autoinstall -k "${KERNEL_NAME}"
+    modinfo -k "${KERNEL_NAME}" amdgpu
+    ln -sfn /opt/rocm/bin/rocm-smi /usr/local/bin/rocm-smi
+}
+
+build_kernel_module() {
+    case "${DRIVER_KIND}" in
+        rocm) build_amd_kernel_module ;;
+        cuda|grid) build_nvidia_kernel_module ;;
+        *)
+            echo "Invalid driver kind: ${DRIVER_KIND}"
+            return 1
+            ;;
+    esac
+}
+
 # initialize_nvidia_driver runs the steps that require the physical GPU and therefore must
 # execute at node boot, regardless of whether the kernel module was prebuilt into the VHD.
 # Keep this ahead of the container toolkit install: the toolkit package immediately starts
@@ -175,6 +200,22 @@ initialize_nvidia_driver() {
         fi
         bash /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
     fi
+}
+
+initialize_amd_driver() {
+    local rocminfo_bin="${AKSGPU_ROCMINFO_BIN:-/opt/rocm/bin/rocminfo}"
+    local rocm_smi_bin="${AKSGPU_ROCM_SMI_BIN:-/opt/rocm/bin/rocm-smi}"
+
+    modprobe -r hyperv_drm 2>/dev/null || true
+    modprobe amdgpu ip_block_mask=0x7f
+    "${rocminfo_bin}"
+    "${rocm_smi_bin}"
+}
+
+configure_amd_driver() {
+    install -m 0644 /opt/gpu/rocm-amdgpu.service /etc/systemd/system/rocm-amdgpu.service
+    systemctl daemon-reload
+    systemctl enable rocm-amdgpu.service
 }
 
 configure_nvidia_container_runtime() {
@@ -242,7 +283,12 @@ build_and_mark() {
 fast_path_ok() {
     ldconfig || return 1
     dkms status >/dev/null 2>&1 || return 1
-    modinfo -k "${KERNEL_NAME}" nvidia >/dev/null 2>&1 || return 1
+    local module="nvidia"
+    if [ "${DRIVER_KIND}" = "rocm" ]; then
+        module="amdgpu"
+        [ -x "${AKSGPU_ROCM_SMI_BIN:-/opt/rocm/bin/rocm-smi}" ] || return 1
+    fi
+    modinfo -k "${KERNEL_NAME}" "${module}" >/dev/null 2>&1 || return 1
 }
 
 # purge_gpu_cache removes the gpu cache that entrypoint.sh staged under /opt/gpu once install.sh
@@ -264,13 +310,15 @@ main() {
     source "${AKSGPU_PMH_PATH:-/opt/gpu/package_manager_helpers.sh}"
     trap 'cleanup_overlay; PS4="+ "' EXIT
 
-    set +euo pipefail
-    open_devices="$(lsof /dev/nvidia* 2>/dev/null)"
-    echo "Open devices: $open_devices"
+    if [ "${DRIVER_KIND}" != "rocm" ]; then
+        set +euo pipefail
+        open_devices="$(lsof /dev/nvidia* 2>/dev/null)"
+        echo "Open devices: $open_devices"
 
-    open_gridd="$(lsof /usr/bin/nvidia-gridd 2>/dev/null)"
-    echo "Open gridd: $open_gridd"
-    set -euo pipefail
+        open_gridd="$(lsof /usr/bin/nvidia-gridd 2>/dev/null)"
+        echo "Open gridd: $open_gridd"
+        set -euo pipefail
+    fi
 
     if [ "${AKSGPU_BUILD_ONLY}" = "1" ]; then
         # VHD build time: compile + cache + marker only, no device access. Target the kernel the VHD
@@ -297,8 +345,13 @@ main() {
         build_and_mark
     fi
 
-    initialize_nvidia_driver
-    configure_nvidia_container_runtime
+    if [ "${DRIVER_KIND}" = "rocm" ]; then
+        initialize_amd_driver
+        configure_amd_driver
+    else
+        initialize_nvidia_driver
+        configure_nvidia_container_runtime
+    fi
 
     purge_gpu_cache
 }
