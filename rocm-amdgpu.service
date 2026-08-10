@@ -1,0 +1,13 @@
+[Unit]
+Description=Load AMDGPU driver for Azure MI300X
+After=systemd-modules-load.service
+Before=kubelet.service
+
+[Service]
+Type=oneshot
+ExecStart=-/sbin/modprobe -r hyperv_drm
+ExecStart=/sbin/modprobe amdgpu ip_block_mask=0x7f
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
