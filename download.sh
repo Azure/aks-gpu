@@ -28,12 +28,61 @@ EOF
     cat > /etc/apt/sources.list.d/rocm.list <<EOF
 deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/${DRIVER_VERSION} jammy main
 EOF
+    cat > /etc/apt/preferences.d/rocm-pin-600 <<'EOF'
+Package: *
+Pin: origin "repo.radeon.com"
+Pin-Priority: 600
+EOF
 
     apt-get update
+
+    # Ubuntu also publishes a package named rocminfo. Prefer AMD's version so its hsa-rocr
+    # runtime and AMD libdrm dependencies are included in the cache.
+    local rocm_package_version rocm_version_major rocm_version_minor rocm_version_patch rocm_build
+    IFS=. read -r rocm_version_major rocm_version_minor rocm_version_patch <<< "${DRIVER_VERSION}"
+    printf -v rocm_build '%d%02d%02d' \
+        "${rocm_version_major}" "${rocm_version_minor}" "${rocm_version_patch}"
+    rocm_package_version="$(apt-cache policy rocminfo | sed -n 's/^[[:space:]]*Candidate: //p')"
+    if [[ "${rocm_package_version}" != *"${rocm_build}"* ]]; then
+        echo "Expected AMD ROCm ${DRIVER_VERSION} rocminfo package, found ${rocm_package_version}"
+        exit 1
+    fi
+
+    # Resolve against an empty status database. Without this, apt omits dependencies already
+    # installed in the image-build stage even though the target host may not have them.
+    local empty_status
+    empty_status="$(mktemp)"
     apt-get install --download-only -y --no-install-recommends \
+        -o Dir::State::status="${empty_status}" \
         -o Dir::Cache::archives=/opt/gpu/amd-packages \
         ${AMD_PACKAGES}
+    rm -f "${empty_status}"
     rm -rf /opt/gpu/amd-packages/partial
+
+    local package
+    for package in ${AMD_REQUIRED_PACKAGES}; do
+        if ! find /opt/gpu/amd-packages -maxdepth 1 -name "${package}_*.deb" -print -quit |
+            grep -q .; then
+            echo "Required AMD package was not cached: ${package}"
+            exit 1
+        fi
+    done
+
+    : > /opt/gpu/amd-packages/PACKAGE-MANIFEST.txt
+    for package_file in /opt/gpu/amd-packages/*.deb; do
+        printf '%s\t%s\t%s\n' \
+            "$(dpkg-deb -f "${package_file}" Package)" \
+            "$(dpkg-deb -f "${package_file}" Version)" \
+            "$(dpkg-deb -f "${package_file}" Architecture)" \
+            >> /opt/gpu/amd-packages/PACKAGE-MANIFEST.txt
+    done
+    sort -u -o /opt/gpu/amd-packages/PACKAGE-MANIFEST.txt \
+        /opt/gpu/amd-packages/PACKAGE-MANIFEST.txt
+    (
+        cd /opt/gpu/amd-packages
+        sha256sum ./*.deb > SHA256SUMS
+        sha256sum -c SHA256SUMS
+    )
 }
 
 if [[ "${DRIVER_KIND}" == "rocm" ]]; then

@@ -158,6 +158,10 @@ install_cached_amd_packages() {
 # with DKMS. Explicitly build for KERNEL_NAME because the VHD builder can still be running an
 # older kernel while preparing the kernel that nodes will boot.
 build_amd_kernel_module() {
+    if [ ! -d "/lib/modules/${KERNEL_NAME}/build" ]; then
+        echo "Missing kernel headers for ${KERNEL_NAME}; install the matching headers before running the ROCm driver installer"
+        return 1
+    fi
     use_package_manager_with_retries wait_for_apt_locks install_cached_amd_packages 10 3
     dkms autoinstall -k "${KERNEL_NAME}"
     modinfo -k "${KERNEL_NAME}" amdgpu

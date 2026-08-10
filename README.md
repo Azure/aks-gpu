@@ -24,7 +24,9 @@ docker build \
 The ROCm image currently supports amd64 Ubuntu 22.04 hosts. It caches AMD's official
 `amdgpu-dkms`, firmware, ROCm-SMI, and `rocminfo` packages. At install time it builds the
 AMDGPU module for the target kernel, loads it with the Azure MI300X parameters, and installs
-a persistent `rocm-amdgpu.service`.
+a persistent `rocm-amdgpu.service`. The host must already contain headers matching its target
+kernel (`/lib/modules/<kernel>/build`), as the image cannot predict which AKS VHD kernel it will
+install onto.
 
 #### For DRIVER_VERSION, following versions are known to work :
 - 470.82.01
