@@ -71,7 +71,7 @@ jobs:
         env:
           DRIVER_VERSION: ${{ steps.load_config.outputs.cuda_version }}
           IMAGE_REPO: ${{ matrix.image_repo }}
-          REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER }}
+          REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER || 'localhost:5000' }}
           VERSION: ${{ steps.semver.outputs.version }}
         run: |
           set -x
@@ -137,7 +137,7 @@ jobs:
         env:
           DRIVER_VERSION: ${{ steps.load_config.outputs.cuda_version }}
           IMAGE_REPO: ${{ matrix.image_repo }}
-          REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER }}
+          REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER || 'localhost:5000' }}
           VERSION: ${{ steps.semver.outputs.version }}
         run: |
           set -x
@@ -211,7 +211,7 @@ jobs:
             DRIVER_URL: ${{ steps.load_config.outputs.grid_url }}
             DRIVER_VERSION: ${{ steps.load_config.outputs.grid_version }}
             IMAGE_REPO: ${{ matrix.image_repo }}
-            REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER }}
+            REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER || 'localhost:5000' }}
             VERSION: ${{ steps.semver.outputs.version }}
           run: |
             set -x
