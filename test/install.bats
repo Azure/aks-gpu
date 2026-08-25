@@ -275,3 +275,82 @@ EOF
 
     [ "$status" -ne 0 ]
 }
+
+# --- arm64 (Grace-Blackwell GB200/GB300): fabric-manager skip + nvidia-imex ---
+# GB uses cross-node IMEX in place of a node-local fabric manager. initialize_nvidia_driver
+# must skip FM on aarch64 (installing the nonexistent aarch64 FM tarball previously bricked
+# node join), and configure_nvidia_container_runtime must instead stage the nvidia-imex deb
+# while leaving the node-wide service OFF (DRA orchestrates IMEX per ComputeDomain).
+
+@test "initialize_nvidia_driver installs the fabric manager on x86_64 cuda" {
+    DRIVER_KIND="cuda"; ARCH="x86_64"; DRIVER_VERSION="580.0.0"
+    nvidia-modprobe() { :; }
+    cp() { :; }
+    ldconfig() { :; }
+    nvidia-smi() { :; }
+    # the FM installer is invoked as `bash /opt/gpu/fabricmanager-.../fm_run_package_installer.sh`
+    bash() { echo "bash $*" >> "${TEST_TMP}/fm-calls"; }
+
+    run initialize_nvidia_driver
+
+    [ "$status" -eq 0 ]
+    run cat "${TEST_TMP}/fm-calls"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"/opt/gpu/fabricmanager-linux-x86_64-580.0.0/sbin/fm_run_package_installer.sh"* ]]
+}
+
+@test "initialize_nvidia_driver skips the fabric manager on arm64 (aarch64) cuda" {
+    DRIVER_KIND="cuda"; ARCH="aarch64"; DRIVER_VERSION="580.0.0"
+    nvidia-modprobe() { :; }
+    cp() { :; }
+    ldconfig() { :; }
+    nvidia-smi() { :; }
+    bash() { echo "bash $*" >> "${TEST_TMP}/fm-calls"; }
+
+    run initialize_nvidia_driver
+
+    [ "$status" -eq 0 ]
+    # FM installer must never run on aarch64 (GB has no node-local fabric manager)
+    [ ! -f "${TEST_TMP}/fm-calls" ]
+}
+
+@test "configure_nvidia_container_runtime installs nvidia-imex on arm64 (aarch64) and leaves the service off" {
+    DRIVER_KIND="cuda"; ARCH="aarch64"
+    install_nvidia_container_toolkit() { :; }
+    mkdir() { :; }
+    cp() { :; }
+    dirname() { command dirname "$@"; }
+    dpkg() { echo "dpkg $*" >> "${TEST_TMP}/imex-calls"; }
+    systemctl() { echo "systemctl $*" >> "${TEST_TMP}/imex-calls"; }
+    export AKSGPU_NVIDIA_CTK_BIN="${TEST_TMP}/bin/nvidia-ctk"
+    _stub_bin nvidia-ctk 0
+
+    run configure_nvidia_container_runtime
+
+    [ "$status" -eq 0 ]
+    run cat "${TEST_TMP}/imex-calls"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"dpkg -i --force-depends /opt/gpu/nvidia-imex_"*"_arm64.deb"* ]]
+    # node-wide IMEX service is disabled+stopped; DRA runs it per ComputeDomain
+    [[ "$output" == *"systemctl disable --now nvidia-imex.service"* ]]
+}
+
+@test "configure_nvidia_container_runtime does not install nvidia-imex on x86_64" {
+    DRIVER_KIND="cuda"; ARCH="x86_64"
+    install_nvidia_container_toolkit() { :; }
+    mkdir() { :; }
+    cp() { :; }
+    dirname() { command dirname "$@"; }
+    dpkg() { echo "dpkg $*" >> "${TEST_TMP}/imex-calls"; }
+    systemctl() { echo "systemctl $*" >> "${TEST_TMP}/imex-calls"; }
+    export AKSGPU_NVIDIA_CTK_BIN="${TEST_TMP}/bin/nvidia-ctk"
+    _stub_bin nvidia-ctk 0
+
+    run configure_nvidia_container_runtime
+
+    [ "$status" -eq 0 ]
+    run cat "${TEST_TMP}/imex-calls"
+    # imex must never be installed on x86_64 (fabric manager handles NVLink there)
+    [[ "$output" != *"dpkg"* ]]
+    [[ "$output" != *"nvidia-imex.service"* ]]
+}
