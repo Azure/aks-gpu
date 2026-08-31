@@ -48,9 +48,38 @@ install_fabric_manager () {
     mv /opt/gpu/fm_run_package_installer.sh /opt/gpu/fabricmanager-linux-${NVIDIA_FM_ARCH}-${DRIVER_VERSION}/sbin/fm_run_package_installer.sh
 }
 
-if [[ "${DRIVER_KIND}" == "cuda" ]]; then
-    # download fabricmanager for nvlink based systems, e.g. multi instance gpu vms.
+install_imex () {
+    # nvidia-imex is the cross-node NVLink (MNNVL / ComputeDomains) coordinator for
+    # Grace-Blackwell. It is NOT in the driver .run or the fabric-manager redist -- it
+    # ships only as a separate deb in the CUDA repo. Bundle the version-matched deb into
+    # the image; it is installed at node boot (see install.sh device_init). The exact deb
+    # revision suffix (e.g. -1ubuntu1) varies by version, so resolve the filename from the
+    # repo Packages index rather than hard-coding it.
+    local repo="https://developer.download.nvidia.com/compute/cuda/repos/ubuntu${VERSION_ID//./}/sbsa"
+    local deb
+    # NB: awk must read to EOF (no early `exit`) -- exiting mid-stream closes the pipe and
+    # SIGPIPEs curl, which `set -o pipefail` would turn into a build failure. Gate on a flag
+    # to keep only the first match instead.
+    deb="$(curl -fsSL "${repo}/Packages" \
+        | awk -v p="nvidia-imex_${DRIVER_VERSION}-" '$1=="Filename:" && index($2,p) && !f{print $2; f=1}')"
+    if [[ -z "${deb}" ]]; then
+        echo "nvidia-imex ${DRIVER_VERSION} not found in ${repo}"
+        exit 1
+    fi
+    curl -fsSLO "${repo}/${deb#./}"
+    mv "$(basename "${deb}")" /opt/gpu/
+}
+
+# download fabricmanager for nvlink based systems, but skip it on arm64:
+# arm64 = Grace-Blackwell (GB200/GB300), which uses IMEX, not a node-local FM.
+if [[ "${DRIVER_KIND}" == "cuda" && "${TARGETARCH}" != "arm64" ]]; then
    install_fabric_manager
+fi
+
+# download nvidia-imex for nvlink based arm64 systems (Grace-Blackwell GB200/GB300):
+# GB uses IMEX (not a node-local fabric manager) to coordinate cross-node NVLink.
+if [[ "${DRIVER_KIND}" == "cuda" && "${TARGETARCH}" == "arm64" ]]; then
+   install_imex
 fi
 
 
