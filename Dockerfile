@@ -2,7 +2,7 @@ ARG distro=24.04
 
 FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro} as gpu
 
-RUN apt update && apt install -y curl xz-utils gnupg2 ca-certificates gettext-base --no-install-recommends
+RUN apt update && apt upgrade -y && apt install -y curl xz-utils gnupg2 ca-certificates gettext-base --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 ARG DRIVER_VERSION
 ARG DRIVER_URL
@@ -23,6 +23,10 @@ COPY download.sh download.sh
 RUN bash download.sh
 
 FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro}
+
+# Pull in the latest Ubuntu security patches (e.g. gpgv, libssl3t64) on top of
+# the base image so shipped VHD images don't carry stale, vulnerable packages.
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
 COPY --from=gpu /opt/gpu/ /opt/gpu/
 COPY entrypoint.sh /entrypoint.sh 
