@@ -14,7 +14,7 @@ grid:
   url: "https://download.microsoft.com/download/5e213ec5-834f-4b0a-87f7-772751353b06/NVIDIA-Linux-x86_64-570.237-grid-azure.run"
 
 grid_v20:
-  version: "595.58.03"
+  version: "595.91.07"
   # We do not support GRID drivers on ARM64 architecture.
   # GRID v20 is required for RTX PRO 6000 Blackwell Server Edition v6 SKUs.
-  url: "https://download.microsoft.com/download/51239696-ec04-4c02-a6b3-1d9c608fb57c/NVIDIA-Linux-x86_64-595.58.03-grid-azure.run"
+  url: "https://download.microsoft.com/download/a7cb6d36-3bbc-43d6-9e88-e0842e6f9ab9/NVIDIA-Linux-x86_64-595.91.07-grid-azure.run"
