@@ -1,4 +1,4 @@
-ARG distro=24.04
+ARG distro=26.04
 
 FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${distro} as gpu
 
