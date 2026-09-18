@@ -37,6 +37,8 @@ EOF
     DRIVER_KIND="cuda"
     ARCH="x86_64"
     DKMS_MARKER_FILE="${TEST_TMP}/dkms-marker"
+    NVIDIA_DKMS_DIR="${TEST_TMP}/dkms/nvidia"
+    GPU_CACHE_DIR="${TEST_TMP}/gpu"
 }
 
 teardown() {
@@ -73,6 +75,62 @@ _stub_dispatch() {
         touch "${TEST_TMP}/configure_nvidia_container_runtime.ran"
     }
     purge_gpu_cache() { :; }
+}
+
+# Stub read-only module checks; registration comes only from the fake installer.
+_stub_fast_path() {
+    ldconfig() { :; }
+    modinfo() {
+        [ "${MODINFO_FAIL:-0}" = 0 ] || return 1
+        case "$*" in
+            *'-F version'*) echo "${MODULE_VERSION:-${DRIVER_VERSION}}" ;;
+            *'-F vermagic'*) echo "${MODULE_KERNEL:-${KERNEL_NAME}} SMP mod_unload" ;;
+            *) echo 'module information' ;;
+        esac
+    }
+    dkms() {
+        echo "$*" >> "${TEST_TMP}/dkms-calls"
+        case "$1" in
+            status)
+                [ "${DKMS_STATUS_FAIL:-0}" = 0 ] || return 1
+                if [ -s "${NVIDIA_DKMS_DIR}/${DRIVER_VERSION}/source/dkms.conf" ]; then
+                    echo "nvidia/${DRIVER_VERSION}, ${KERNEL_NAME}, ${ARCH}: installed"
+                fi
+                ;;
+            *) return 99 ;;
+        esac
+    }
+}
+
+_stub_build() {
+    _stub_fast_path
+    export TEST_TMP NVIDIA_DKMS_DIR DRIVER_VERSION
+    command mkdir -p "${GPU_CACHE_DIR}/fake"
+    cat > "${GPU_CACHE_DIR}/fake/nvidia-installer" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "${TEST_TMP}/installer-args"
+for arg in "$@"; do
+    if [ "$arg" = --dkms ]; then INSTALLER_REGISTERS=1; fi
+done
+if [ "${INSTALLER_REGISTERS:-0}" = 1 ]; then
+    mkdir -p "${NVIDIA_DKMS_DIR}/${DRIVER_VERSION}/source"
+    echo 'PACKAGE_NAME="nvidia"' > "${NVIDIA_DKMS_DIR}/${DRIVER_VERSION}/source/dkms.conf"
+fi
+exit "${INSTALLER_RC:-0}"
+EOF
+    chmod +x "${GPU_CACHE_DIR}/fake/nvidia-installer"
+    resolve_runfile() { RUNFILE=fake; }
+    cleanup_overlay() { :; }
+    cp() { :; }
+    rm() { :; }
+    mount() { :; }
+    mkdir() { case "$*" in *"${TEST_TMP}"*) command mkdir "$@" ;; *) : ;; esac; }
+    update-initramfs() { :; }
+    GPU_DEST="${TEST_TMP}/userspace"
+    # Redirect the build function's fixed linker config write for these host-side tests.
+    build_kernel_module_for_test="$(declare -f build_kernel_module)"
+    build_kernel_module_for_test="${build_kernel_module_for_test//\/etc\/ld.so.conf.d\/nvidia.conf/${TEST_TMP}/nvidia.conf}"
+    eval "${build_kernel_module_for_test}"
 }
 
 # --- marker: write -------------------------------------------------------
@@ -131,25 +189,74 @@ _stub_dispatch() {
 
 # --- fast-path fallback --------------------------------------------------
 
-@test "fast_path_ok succeeds when ldconfig+dkms+modinfo all pass" {
-    _stub_bin ldconfig 0; _stub_bin dkms 0; _stub_bin modinfo 0
-    PATH="${TEST_TMP}/bin:$PATH"
+@test "fast_path_ok succeeds when dkms and modinfo succeed" {
+    _stub_fast_path
     run fast_path_ok
     [ "$status" -eq 0 ]
 }
 
 @test "fast_path_ok fails (-> full build) when modinfo reports the module is unusable" {
-    _stub_bin ldconfig 0; _stub_bin dkms 0; _stub_bin modinfo 1
-    PATH="${TEST_TMP}/bin:$PATH"
+    _stub_fast_path
+    MODINFO_FAIL=1
     run fast_path_ok
     [ "$status" -ne 0 ]
 }
 
 @test "fast_path_ok fails (-> full build) when dkms status fails" {
-    _stub_bin ldconfig 0; _stub_bin dkms 1; _stub_bin modinfo 0
-    PATH="${TEST_TMP}/bin:$PATH"
+    _stub_fast_path
+    DKMS_STATUS_FAIL=1
     run fast_path_ok
     [ "$status" -ne 0 ]
+}
+
+@test "build-only uses no-dkms, preserves the cleanup path, and leaves no registration" {
+    _stub_build
+    AKSGPU_BUILD_ONLY=1
+    run build_and_mark
+    [ "$status" -eq 0 ]
+    [ -f "${DKMS_MARKER_FILE}" ]
+    [ ! -e "${NVIDIA_DKMS_DIR}" ]
+    run cat "${TEST_TMP}/installer-args"
+    [[ "$output" == *'--no-dkms'* ]]
+    [[ "$output" == *"--kernel-install-path=/lib/modules/${KERNEL_NAME}/updates/dkms"* ]]
+    [[ "$output" != *$'\n--dkms'* ]]
+}
+
+@test "normal installation retains DKMS registration" {
+    _stub_build
+    AKSGPU_BUILD_ONLY=0
+    run build_and_mark
+    [ "$status" -eq 0 ]
+    [ -s "${NVIDIA_DKMS_DIR}/${DRIVER_VERSION}/source/dkms.conf" ]
+    run cat "${TEST_TMP}/installer-args"
+    [[ "$output" == *'--dkms'* ]]
+    [[ "$output" != *'--no-dkms'* ]]
+}
+
+@test "build-only refuses inherited registrations, including dangling symlinks" {
+    _stub_build
+    AKSGPU_BUILD_ONLY=1
+    command mkdir -p "$(dirname "${NVIDIA_DKMS_DIR}")"
+    ln -s "${TEST_TMP}/missing" "${NVIDIA_DKMS_DIR}"
+    run build_and_mark
+    [ "$status" -ne 0 ]
+    [ ! -e "${TEST_TMP}/installer-args" ]
+    [ ! -e "${DKMS_MARKER_FILE}" ]
+}
+
+@test "build-only fails if the installer leaves registration or fails itself" {
+    _stub_build
+    AKSGPU_BUILD_ONLY=1
+    export INSTALLER_REGISTERS=1
+    run build_and_mark
+    [ "$status" -ne 0 ]
+    [ ! -e "${DKMS_MARKER_FILE}" ]
+    unset INSTALLER_REGISTERS
+    command rm -rf "${NVIDIA_DKMS_DIR}"
+    export INSTALLER_RC=42
+    run build_and_mark
+    [ "$status" -eq 42 ]
+    [ ! -e "${DKMS_MARKER_FILE}" ]
 }
 
 # --- target kernel selection --------------------------------------------
@@ -187,8 +294,7 @@ _stub_dispatch() {
 
 @test "dispatch install-skip-build with matching marker: initializes the driver before the runtime" {
     _stub_dispatch
-    _stub_bin ldconfig 0; _stub_bin dkms 0; _stub_bin modinfo 0
-    PATH="${TEST_TMP}/bin:$PATH"
+    _stub_fast_path
     KERNEL_NAME="5.15.0-1114-azure"; DRIVER_VERSION="580.0.0"; DRIVER_KIND="cuda"; ARCH="x86_64"
     write_dkms_marker
     AKSGPU_BUILD_ONLY=0; AKSGPU_SKIP_KERNEL_BUILD=1
@@ -205,8 +311,7 @@ _stub_dispatch() {
 
 @test "dispatch install-skip-build with mismatched marker: falls back to a full build" {
     _stub_dispatch
-    _stub_bin ldconfig 0; _stub_bin dkms 0; _stub_bin modinfo 0
-    PATH="${TEST_TMP}/bin:$PATH"
+    _stub_fast_path
     KERNEL_NAME="5.15.0-1114-azure"; DRIVER_VERSION="580.0.0"; DRIVER_KIND="cuda"; ARCH="x86_64"
     write_dkms_marker
     DRIVER_VERSION="999.0.0"   # node now needs a different version than the baked marker
@@ -214,6 +319,18 @@ _stub_dispatch() {
     run main
     [ "$status" -eq 0 ]
     [[ "$output" == *"building from source"* ]]
+    [ -f "${TEST_TMP}/build_and_mark.ran" ]
+    [ -f "${TEST_TMP}/initialize_nvidia_driver.ran" ]
+    [ -f "${TEST_TMP}/configure_nvidia_container_runtime.ran" ]
+}
+
+@test "normal install still builds even when a matching prebake marker exists" {
+    _stub_dispatch
+    _stub_fast_path
+    write_dkms_marker
+    AKSGPU_BUILD_ONLY=0; AKSGPU_SKIP_KERNEL_BUILD=0
+    run main
+    [ "$status" -eq 0 ]
     [ -f "${TEST_TMP}/build_and_mark.ran" ]
     [ -f "${TEST_TMP}/initialize_nvidia_driver.ran" ]
     [ -f "${TEST_TMP}/configure_nvidia_container_runtime.ran" ]
