@@ -8,8 +8,10 @@ namespace: kube-system
 image:
   # Compute-domain controller image (contains BOTH compute-domain-controller and
   # compute-domain-daemon; the controller spawns the daemon DaemonSet from this same
-  # image via the IMAGE_NAME env). Onboarded via dalec/MCR.
-  repository: mcr.microsoft.com/oss/v2/nvidia/compute-domain-controller
+  # image via the IMAGE_NAME env).
+  # TESTING: upstream image is used until the dalec/MCR onboarding lands
+  # (target: mcr.microsoft.com/oss/v2/nvidia/compute-domain-controller).
+  repository: registry.k8s.io/dra-driver-nvidia/dra-driver-nvidia-gpu
   tag: "v0.5.0"
   pullPolicy: IfNotPresent
 
