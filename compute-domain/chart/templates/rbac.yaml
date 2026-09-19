@@ -1,0 +1,55 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "computedomain.name" . }}
+  labels:
+    {{- include "computedomain.labels" . | nindent 4 }}
+rules:
+  # Reconcile the ComputeDomain CRs and set their status.
+  - apiGroups: ["resource.nvidia.com"]
+    resources: ["computedomains"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["resource.nvidia.com"]
+    resources: ["computedomains/status"]
+    verbs: ["update"]
+  # Workload ResourceClaimTemplate the controller manages for each ComputeDomain.
+  - apiGroups: ["resource.k8s.io"]
+    resources: ["resourceclaimtemplates"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  # Leader election.
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  # driverManaged only: the controller creates a per-ComputeDomain
+  # compute-domain-daemon DaemonSet and the ComputeDomainClique objects.
+  # (Dropped under hostManaged IMEX, which this managed chart does not use.)
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["resource.nvidia.com"]
+    resources: ["computedomaincliques"]
+    verbs: ["get", "list", "watch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "computedomain.name" . }}
+  labels:
+    {{- include "computedomain.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "computedomain.name" . }}
+subjects:
+  # Bound to the controller ServiceAccount (NOT system:nodes) — blast radius is the
+  # single controller pod. The node-identity kubelet-plugin binding (2 read-only
+  # resource.nvidia.com reads to system:nodes) is delivered separately.
+  - kind: ServiceAccount
+    name: {{ include "computedomain.name" . }}
+    namespace: {{ include "computedomain.namespace" . }}

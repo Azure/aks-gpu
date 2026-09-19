@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "computedomain.name" . }}
+  namespace: {{ include "computedomain.namespace" . }}
+  labels:
+    {{- include "computedomain.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.controller.replicas }}
+  selector:
+    matchLabels:
+      {{- include "computedomain.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "computedomain.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "computedomain.name" . }}
+      priorityClassName: {{ .Values.controller.priorityClassName }}
+      # Control-plane pod: run on a Linux system node, tolerate control-plane taints.
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: compute-domain
+          image: {{ include "computedomain.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["compute-domain-controller", "-v", "$(LOG_VERBOSITY)"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.controller.resources | nindent 12 }}
+          env:
+            - name: LOG_VERBOSITY
+              value: "{{ .Values.logVerbosity }}"
+            # Verbosity for the dynamically-launched compute-domain-daemon pods
+            # (their pod spec is rendered by the controller, not this chart).
+            - name: LOG_VERBOSITY_CD_DAEMON
+              value: "{{ .Values.logVerbosity }}"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            # The controller spawns the per-ComputeDomain compute-domain-daemon
+            # DaemonSet from THIS image, so it must contain compute-domain-daemon too.
+            - name: IMAGE_NAME
+              value: {{ include "computedomain.image" . }}
+            # runc: explicit "void" so the controller pod grabs no GPUs.
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: void
+            - name: IMEX_MODE
+              value: "{{ .Values.imex.mode }}"
+            - name: IMEX_ISOLATION
+              value: "{{ .Values.imex.isolation }}"
+            {{- if .Values.featureGates }}
+            - name: FEATURE_GATES
+              value: "{{- range $k, $v := .Values.featureGates }}{{ $k }}={{ $v }},{{- end }}"
+            {{- end }}
+            - name: LEADER_ELECTION_ENABLED
+              value: "{{ .Values.controller.leaderElection.enabled }}"
+            - name: LEADER_ELECTION_LEASE_LOCK_NAME
+              value: "{{ include "computedomain.name" . }}"
+            - name: LEADER_ELECTION_LEASE_LOCK_NAMESPACE
+              value: "{{ include "computedomain.namespace" . }}"
+            - name: LEADER_ELECTION_LEASE_DURATION
+              value: "{{ .Values.controller.leaderElection.leaseDuration }}"
+            - name: LEADER_ELECTION_RENEW_DEADLINE
+              value: "{{ .Values.controller.leaderElection.renewDeadline }}"
+            - name: LEADER_ELECTION_RETRY_PERIOD
+              value: "{{ .Values.controller.leaderElection.retryPeriod }}"
