@@ -32,7 +32,6 @@ rules:
     verbs: ["get", "list", "watch"]
   # driverManaged only: the controller creates a per-ComputeDomain
   # compute-domain-daemon DaemonSet and the ComputeDomainClique objects.
-  # (Dropped under hostManaged IMEX, which this managed chart does not use.)
   - apiGroups: ["apps"]
     resources: ["daemonsets"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
