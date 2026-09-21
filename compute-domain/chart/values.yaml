@@ -56,15 +56,34 @@ deviceClasses:
     name: compute-domain-daemon.nvidia.com
 
 priorityClassName: system-cluster-critical
-nodeSelector:
-  kubernetes.io/os: linux
+nodeSelector: {}
 tolerations:
-  - key: CriticalAddonsOnly
-    operator: Exists
-  - key: node-role.kubernetes.io/control-plane
+  # Matches the RP synth convention (cluster-health-monitor). No GPU-taint toleration
+  # on purpose, so the controller stays off GB nodes.
+  - key: node-role.kubernetes.io/master
     operator: Exists
     effect: NoSchedule
-affinity: {}
+  - key: CriticalAddonsOnly
+    operator: Exists
+# Require a real linux AKS node (not an ACI virtual-kubelet) on the system pool —
+# mirrors the RP synth convention (cluster-health-monitor-synth): mode=system is a
+# hard requirement, not a soft preference.
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.azure.com/cluster
+              operator: Exists
+            - key: type
+              operator: NotIn
+              values: ["virtual-kubelet"]
+            - key: kubernetes.io/os
+              operator: In
+              values: ["linux"]
+            - key: kubernetes.azure.com/mode
+              operator: In
+              values: ["system"]
 podAnnotations: {}
 podLabels: {}
 resources:
