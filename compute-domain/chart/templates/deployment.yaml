@@ -24,10 +24,14 @@ spec:
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with .Values.podAnnotations }}
       annotations:
+        # Stateless, leader-elected controller — safe for the cluster autoscaler to
+        # drain/reschedule. Without this a single-replica kube-system Deployment pins
+        # its node from scale-down (CA won't evict kube-system pods lacking a PDB).
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "computedomain.serviceAccountName" . }}
       {{- with .Values.priorityClassName }}
