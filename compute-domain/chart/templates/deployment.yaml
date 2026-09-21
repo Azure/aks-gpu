@@ -84,6 +84,12 @@ spec:
             # DaemonSet from THIS image, so it must contain compute-domain-daemon too.
             - name: IMAGE_NAME
               value: {{ include "computedomain.image" . }}
+            {{- if .Values.imagePullSecrets }}
+            # Pull-secret names propagated to the controller-spawned compute-domain-daemon
+            # DaemonSet pods (they're created from this same image).
+            - name: CD_DAEMON_IMAGE_PULL_SECRET_NAMES
+              value: "{{- range $i, $s := .Values.imagePullSecrets }}{{ if $i }},{{ end }}{{ $s.name }}{{- end }}"
+            {{- end }}
             # runc: explicit "void" so the controller pod grabs no GPUs.
             - name: NVIDIA_VISIBLE_DEVICES
               value: void
