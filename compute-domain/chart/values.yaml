@@ -58,8 +58,6 @@ deviceClasses:
 priorityClassName: system-cluster-critical
 nodeSelector: {}
 tolerations:
-  # Matches the RP synth convention (cluster-health-monitor). No GPU-taint toleration
-  # on purpose, so the controller stays off GB nodes.
   - key: node-role.kubernetes.io/master
     operator: Exists
     effect: NoSchedule
