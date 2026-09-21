@@ -1,46 +1,75 @@
 # Values for microsoft.managedcomputedomain.
 # The consumer is the AKS core-extension helm runner (not the public); the Azure.*
-# block is injected by the extension system at install time (see dranet's chart).
+# block is injected by the extension system at install time (same model as managed DRANET).
 
-# Namespace the controller runs in. kube-system matches the managed-dranet model.
-namespace: kube-system
+nameOverride: compute-domain-controller
+fullnameOverride: compute-domain-controller
 
 image:
   # Compute-domain controller image (contains BOTH compute-domain-controller and
   # compute-domain-daemon; the controller spawns the daemon DaemonSet from this same
   # image via the IMAGE_NAME env).
-  # TESTING: upstream image is used until the dalec/MCR onboarding lands
+  # TESTING: upstream image until the dalec/MCR onboarding lands
   # (target: mcr.microsoft.com/oss/v2/nvidia/compute-domain-controller).
   repository: registry.k8s.io/dra-driver-nvidia/dra-driver-nvidia-gpu
   tag: "v0.5.0"
   pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+aks:
+  managedByLabels:
+    enabled: false
+
+rbac:
+  create: true
+
+serviceAccount:
+  annotations: {}
 
 # IMEX deployment mode. driverManaged = the controller creates a per-ComputeDomain
 # compute-domain-daemon DaemonSet that runs nvidia-imex (host binary via CDI).
-# hostManaged is intentionally NOT supported by this managed chart: it would require
-# AKS to own host IMEX topology (nodes_config.cfg) which is impossible at node
-# bootstrap and duplicates what the DaemonSet does for free.
+# hostManaged is intentionally NOT supported by this managed chart (see README).
 imex:
   mode: driverManaged
   isolation: domain
 
 logVerbosity: 4
 
-controller:
-  replicas: 1
-  priorityClassName: system-cluster-critical
-  leaderElection:
-    enabled: true
-    leaseDuration: "15s"
-    renewDeadline: "10s"
-    retryPeriod: "2s"
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
-      memory: 256Mi
+replicas: 1
 
-# Feature gates passed to the controller (FEATURE_GATES env). Left empty = upstream
-# defaults (IMEXDaemonsWithDNSNames on, requires driver >= 570.158 which R580 satisfies).
+leaderElection:
+  enabled: true
+  leaseDuration: "15s"
+  renewDeadline: "10s"
+  retryPeriod: "2s"
+
+# Feature gates passed to the controller (FEATURE_GATES env). Empty = upstream defaults
+# (IMEXDaemonsWithDNSNames on, requires driver >= 570.158 which R580 satisfies).
 featureGates: {}
+
+deviceClasses:
+  computeDomainDefaultChannel:
+    enabled: true
+    name: compute-domain-default-channel.nvidia.com
+  computeDomainDaemon:
+    enabled: true
+    name: compute-domain-daemon.nvidia.com
+
+priorityClassName: system-cluster-critical
+nodeSelector:
+  kubernetes.io/os: linux
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+affinity: {}
+podAnnotations: {}
+podLabels: {}
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi

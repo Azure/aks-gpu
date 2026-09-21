@@ -1,12 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "computedomain.name" . }}
-  namespace: {{ include "computedomain.namespace" . }}
+  name: {{ include "computedomain.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "computedomain.labels" . | nindent 4 }}
+    {{- if .Values.aks.managedByLabels.enabled }}
+    kubernetes.azure.com/managedby: aks
+    {{- end }}
 spec:
-  replicas: {{ .Values.controller.replicas }}
+  replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
       {{- include "computedomain.selectorLabels" . | nindent 6 }}
@@ -14,18 +17,38 @@ spec:
     metadata:
       labels:
         {{- include "computedomain.labels" . | nindent 8 }}
+        {{- include "computedomain.selectorLabels" . | nindent 8 }}
+        {{- if .Values.aks.managedByLabels.enabled }}
+        kubernetes.azure.com/managedby: aks
+        {{- end }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
-      serviceAccountName: {{ include "computedomain.name" . }}
-      priorityClassName: {{ .Values.controller.priorityClassName }}
-      # Control-plane pod: run on a Linux system node, tolerate control-plane taints.
+      serviceAccountName: {{ include "computedomain.serviceAccountName" . }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
       nodeSelector:
-        kubernetes.io/os: linux
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
       tolerations:
-        - key: CriticalAddonsOnly
-          operator: Exists
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
-          effect: NoSchedule
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: compute-domain
           image: {{ include "computedomain.image" . }}
@@ -37,7 +60,7 @@ spec:
             capabilities:
               drop: ["ALL"]
           resources:
-            {{- toYaml .Values.controller.resources | nindent 12 }}
+            {{- toYaml .Values.resources | nindent 12 }}
           env:
             - name: LOG_VERBOSITY
               value: "{{ .Values.logVerbosity }}"
@@ -69,14 +92,14 @@ spec:
               value: "{{- range $k, $v := .Values.featureGates }}{{ $k }}={{ $v }},{{- end }}"
             {{- end }}
             - name: LEADER_ELECTION_ENABLED
-              value: "{{ .Values.controller.leaderElection.enabled }}"
+              value: "{{ .Values.leaderElection.enabled }}"
             - name: LEADER_ELECTION_LEASE_LOCK_NAME
-              value: "{{ include "computedomain.name" . }}"
+              value: "{{ include "computedomain.fullname" . }}"
             - name: LEADER_ELECTION_LEASE_LOCK_NAMESPACE
-              value: "{{ include "computedomain.namespace" . }}"
+              value: "{{ .Release.Namespace }}"
             - name: LEADER_ELECTION_LEASE_DURATION
-              value: "{{ .Values.controller.leaderElection.leaseDuration }}"
+              value: "{{ .Values.leaderElection.leaseDuration }}"
             - name: LEADER_ELECTION_RENEW_DEADLINE
-              value: "{{ .Values.controller.leaderElection.renewDeadline }}"
+              value: "{{ .Values.leaderElection.renewDeadline }}"
             - name: LEADER_ELECTION_RETRY_PERIOD
-              value: "{{ .Values.controller.leaderElection.retryPeriod }}"
+              value: "{{ .Values.leaderElection.retryPeriod }}"

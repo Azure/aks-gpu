@@ -1,9 +1,13 @@
+{{- if .Values.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "computedomain.name" . }}
+  name: {{ include "computedomain.fullname" . }}
   labels:
     {{- include "computedomain.labels" . | nindent 4 }}
+    {{- if .Values.aks.managedByLabels.enabled }}
+    kubernetes.azure.com/managedby: aks
+    {{- end }}
 rules:
   # Reconcile the ComputeDomain CRs and set their status.
   - apiGroups: ["resource.nvidia.com"]
@@ -39,17 +43,21 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "computedomain.name" . }}
+  name: {{ include "computedomain.fullname" . }}
   labels:
     {{- include "computedomain.labels" . | nindent 4 }}
+    {{- if .Values.aks.managedByLabels.enabled }}
+    kubernetes.azure.com/managedby: aks
+    {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "computedomain.name" . }}
+  name: {{ include "computedomain.fullname" . }}
 subjects:
   # Bound to the controller ServiceAccount (NOT system:nodes) — blast radius is the
   # single controller pod. The node-identity kubelet-plugin binding (2 read-only
   # resource.nvidia.com reads to system:nodes) is delivered separately.
   - kind: ServiceAccount
-    name: {{ include "computedomain.name" . }}
-    namespace: {{ include "computedomain.namespace" . }}
+    name: {{ include "computedomain.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
