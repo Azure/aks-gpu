@@ -24,8 +24,6 @@ rules:
     resources: ["leases"]
     verbs: ["get", "create", "update"]
   - apiGroups: [""]
-    # update: the controller labels/unlabels nodes with
-    # resource.nvidia.com/computeDomain=<UID> to place the per-CD daemon DaemonSet.
     resources: ["nodes"]
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: [""]
