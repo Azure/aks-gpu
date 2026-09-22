@@ -87,6 +87,9 @@ podLabels: {}
 resources:
   requests:
     cpu: 50m
-    memory: 64Mi
+    memory: 128Mi
   limits:
-    memory: 256Mi
+    # No CPU limit on purpose (avoids CFS throttling; matches dranet/upstream).
+    # Memory limit headroom: the controller's footprint scales with cluster size
+    # (it watches all pods/nodes), so 512Mi rather than a tight bound.
+    memory: 512Mi
