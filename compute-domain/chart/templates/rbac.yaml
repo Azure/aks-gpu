@@ -1,0 +1,90 @@
+{{- if .Values.rbac.create }}
+# Cluster-scoped: reconcile ComputeDomain CRs, manage the workload ResourceClaimTemplate,
+# leader election, and read nodes/pods cluster-wide.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "computedomain.fullname" . }}
+  labels:
+    {{- include "computedomain.labels" . | nindent 4 }}
+    {{- if .Values.aks.managedByLabels.enabled }}
+    kubernetes.azure.com/managedby: aks
+    {{- end }}
+rules:
+  - apiGroups: ["resource.nvidia.com"]
+    resources: ["computedomains"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["resource.nvidia.com"]
+    resources: ["computedomains/status"]
+    verbs: ["update"]
+  - apiGroups: ["resource.k8s.io"]
+    resources: ["resourceclaimtemplates"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "computedomain.fullname" . }}
+  labels:
+    {{- include "computedomain.labels" . | nindent 4 }}
+    {{- if .Values.aks.managedByLabels.enabled }}
+    kubernetes.azure.com/managedby: aks
+    {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "computedomain.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "computedomain.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+# Namespaced: the per-ComputeDomain compute-domain-daemon DaemonSets and the
+# ComputeDomainClique objects the controller creates live in the driver namespace,
+# so these verbs are scoped there rather than cluster-wide (driverManaged only).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "computedomain.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "computedomain.labels" . | nindent 4 }}
+    {{- if .Values.aks.managedByLabels.enabled }}
+    kubernetes.azure.com/managedby: aks
+    {{- end }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["resource.nvidia.com"]
+    resources: ["computedomaincliques"]
+    verbs: ["get", "list", "watch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "computedomain.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "computedomain.labels" . | nindent 4 }}
+    {{- if .Values.aks.managedByLabels.enabled }}
+    kubernetes.azure.com/managedby: aks
+    {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "computedomain.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "computedomain.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
