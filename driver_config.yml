@@ -7,11 +7,9 @@ cuda_lts:
   version: "580.159.04"
 
 grid:
-  version: "570.237"
+  version: "595.91.07"
   # We do not support GRID drivers on ARM64 architecture.
-  # vGPU18.8 branch driver for NVadsA10_v5. NVIDIA publishes this build as a
-  # two-component version (570.237), not the usual three-component form.
-  url: "https://download.microsoft.com/download/5e213ec5-834f-4b0a-87f7-772751353b06/NVIDIA-Linux-x86_64-570.237-grid-azure.run"
+  url: "https://download.microsoft.com/download/a7cb6d36-3bbc-43d6-9e88-e0842e6f9ab9/NVIDIA-Linux-x86_64-595.91.07-grid-azure.run"
 
 grid_v20:
   version: "595.91.07"
