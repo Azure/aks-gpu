@@ -1,0 +1,34 @@
+# DeviceClasses the compute-domain kubelet-plugin publishes devices under.
+{{- if .Values.deviceClasses.computeDomainDefaultChannel.enabled }}
+---
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: {{ .Values.deviceClasses.computeDomainDefaultChannel.name | default "compute-domain-default-channel.nvidia.com" }}
+  labels:
+    {{- include "computedomain.labels" . | nindent 4 }}
+    {{- if .Values.aks.managedByLabels.enabled }}
+    kubernetes.azure.com/managedby: aks
+    {{- end }}
+spec:
+  selectors:
+    - cel:
+        expression: "device.driver == 'compute-domain.nvidia.com' && device.attributes['compute-domain.nvidia.com'].type == 'channel' && device.attributes['compute-domain.nvidia.com'].id == 0"
+{{- end }}
+{{- if .Values.deviceClasses.computeDomainDaemon.enabled }}
+---
+# driverManaged only: the per-ComputeDomain daemon claims a 'daemon' device.
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: {{ .Values.deviceClasses.computeDomainDaemon.name | default "compute-domain-daemon.nvidia.com" }}
+  labels:
+    {{- include "computedomain.labels" . | nindent 4 }}
+    {{- if .Values.aks.managedByLabels.enabled }}
+    kubernetes.azure.com/managedby: aks
+    {{- end }}
+spec:
+  selectors:
+    - cel:
+        expression: "device.driver == 'compute-domain.nvidia.com' && device.attributes['compute-domain.nvidia.com'].type == 'daemon'"
+{{- end }}

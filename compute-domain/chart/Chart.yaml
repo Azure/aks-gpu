@@ -1,0 +1,20 @@
+apiVersion: v2
+name: microsoft.managedcomputedomain
+description: |
+  AKS-managed NVIDIA ComputeDomain controller for Grace-Blackwell (GB200/GB300).
+  Deploys the cluster-scoped compute-domain-controller (and its RBAC + DeviceClasses)
+  that binds GB nodes into cross-node NVLink (MNNVL) IMEX domains. The controller
+  dynamically creates a per-ComputeDomain compute-domain-daemon DaemonSet from its
+  own image (driverManaged IMEX). The node-local compute-domain kubelet-plugin and
+  the host nvidia-imex binary are delivered separately (deb / aks-gpu), not by this chart.
+type: application
+version: 0.0.1
+appVersion: "0.5.0"
+keywords:
+  - nvidia
+  - dra
+  - compute-domain
+  - imex
+  - mnnvl
+  - gb200
+  - gb300
