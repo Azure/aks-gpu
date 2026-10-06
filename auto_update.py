@@ -31,26 +31,41 @@ def validate_driver_url(url):
     return url
 
 
-def get_latest_grid_driver():
+def get_grid_driver_data():
     # URL of the JSON file containing driver information
     url = "https://raw.githubusercontent.com/Azure/azhpc-extensions/refs/heads/master/NvidiaGPU/Nvidia-GPU-Linux-Resources.json"
-    response = requests.get(url)
-    response.raise_for_status()  
-    data = response.json()
-    
-    # Extract the latest GRID driver information
-    grid_versions = data['Latest']['Category']
-    grid_info = next((item for item in grid_versions if item["Name"] == "GRID"), None)
-    
-    if grid_info:
-        latest_version_info = grid_info['Versions'][0]
-        latest_version = validate_driver_version(latest_version_info['DriverVersion'])
-        latest_url = validate_driver_url(latest_version_info['Driver'][0]['DirLink'])
-        return latest_version, latest_url
-    
-    raise Exception("Could not find latest GRID driver version")
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    return response.json()
 
-# Add this at the end of your update_driver_config function
+
+def get_latest_grid_driver(data, driver_branch):
+    candidates = []
+    for section in ("Latest", "Archive"):
+        for release in data[section]:
+            for category in release["Category"]:
+                if category["Name"] != "GRID":
+                    continue
+                for version_info in category["Versions"]:
+                    version = validate_driver_version(version_info["DriverVersion"])
+                    if version.split(".")[0] == driver_branch:
+                        candidates.append(version_info)
+
+    if not candidates:
+        raise ValueError(f"Could not find GRID R{driver_branch} in upstream driver metadata")
+
+    latest = max(
+        candidates,
+        key=lambda item: tuple(int(part) for part in item["DriverVersion"].split(".")),
+    )
+    version = latest["DriverVersion"]
+    url = validate_driver_url(latest["Drivers"][0]["DirLink"])
+    expected_filename = f"NVIDIA-Linux-x86_64-{version}-grid-azure.run"
+    if os.path.basename(urlparse(url).path) != expected_filename:
+        raise ValueError(f"Driver URL does not match GRID version {version}: {url!r}")
+    return version, url
+
+
 def update_driver_config():
     yaml = YAML()
     yaml.preserve_quotes = True
@@ -62,12 +77,19 @@ def update_driver_config():
     with open("driver_config.yml", "r") as f:
         config = yaml.load(f)
     
-    # Get latest version and URL
-    latest_version, latest_url = get_latest_grid_driver()
-    
-    # Update the grid section while preserving order
-    config['grid']['version'] = latest_version
-    config['grid']['url'] = latest_url
+    data = get_grid_driver_data()
+    for config_key in ("grid", "grid_v20"):
+        current_version = validate_driver_version(config[config_key]["version"])
+        latest_version, latest_url = get_latest_grid_driver(
+            data, current_version.split(".")[0]
+        )
+        if tuple(map(int, latest_version.split("."))) < tuple(map(int, current_version.split("."))):
+            raise ValueError(
+                f"Refusing to downgrade {config_key} from {current_version} to {latest_version}"
+            )
+        config[config_key]["version"] = latest_version
+        config[config_key]["url"] = latest_url
+        print(f"{config_key}: {current_version} -> {latest_version}")
     
     # Write back to file
     with open("driver_config.yml", "w") as f:

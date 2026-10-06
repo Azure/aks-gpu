@@ -7,9 +7,10 @@ cuda_lts:
   version: "580.159.04"
 
 grid:
-  version: "595.91.07"
+  # vGPU 19.6 LTS for NVadsA10_v5; keep the R580 branch separate from GRID v20.
+  version: "580.178.04"
   # We do not support GRID drivers on ARM64 architecture.
-  url: "https://download.microsoft.com/download/a7cb6d36-3bbc-43d6-9e88-e0842e6f9ab9/NVIDIA-Linux-x86_64-595.91.07-grid-azure.run"
+  url: "https://download.microsoft.com/download/4efc1974-7b6f-431f-ab2d-b8d99bb8a512/NVIDIA-Linux-x86_64-580.178.04-grid-azure.run"
 
 grid_v20:
   version: "595.91.07"

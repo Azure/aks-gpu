@@ -5,6 +5,34 @@ Kubernetes Nvidia GPU integration. Run it as a privileged container in the host 
 It will enter the host mount namespace and install the nvidia drivers, container runtime, 
 and associated libraries on the host, validating their functionality
 
+## GRID driver branches
+
+The GRID images intentionally track different branches from the
+[Azure Linux GRID compatibility matrix](https://learn.microsoft.com/azure/virtual-machines/linux/n-series-driver-setup#supported-grid-drivers):
+
+| Configuration | Image | Driver | Azure compatibility |
+| --- | --- | --- | --- |
+| `grid` | `aks-gpu-grid` | vGPU 19.6 LTS / `580.178.04` | NVadsA10_v5 |
+| `grid_v20` | `aks-gpu-grid-v20` | vGPU 20.2 / `595.91.07` | NCv6 RTX PRO 6000 BSE, NCasT4_v3, NVadsA10_v5 |
+
+AgentBaker selects the standard GRID image for its A10 GRID SKUs and the v20 image
+for NCv6 RTX PRO 6000 BSE. CUDA driver selection is separate and is unchanged;
+the presence of a GRID option for a SKU does not require switching its CUDA
+workloads to GRID. The updater checks both upstream `Latest` and `Archive`
+releases, but only updates each image within its configured driver branch.
+
+Changing this producer does not update AKS nodes by itself. After the R580 image
+is published, AgentBaker must pin its actual MCR tag and constrain Renovate for
+`aks/aks-gpu-grid` to R580; existing R595 tags in that repository must not be
+selected for the A10 LTS path.
+
+Keeping the R580 option avoids forcing older applications onto R595. For example,
+[Isaac Sim 5.1 pins Kit SDK 107.3.3](https://github.com/isaac-sim/IsaacSim/blob/v5.1.0/deps/kit-sdk.packman.xml),
+and [upstream reports that this Kit version does not support 59x drivers](https://github.com/isaac-sim/IsaacSim/issues/794#issuecomment-5606456050).
+This is not a guarantee for every application: the separate MIG/vGPU identifier
+bug in that issue requires a newer Kit version, even with a supported driver.
+The exact application workload still needs validation on its target SKU.
+
 ## Build
 ```
 docker build -f Dockerfile  --build-arg DRIVER_VERSION=??? -t docker.io/alexeldeib/aks-gpu:latest .
