@@ -237,3 +237,7 @@ jobs:
           sudo apt-get install -y bats
       - name: Run install.sh unit tests
         run: bats test/install.bats
+      - name: Install GRID updater dependencies
+        run: python3 -m pip install -r grid_requirements.txt
+      - name: Test GRID branch selection
+        run: python3 -m unittest discover -s test -p 'test_*.py'
