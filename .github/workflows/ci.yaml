@@ -85,7 +85,7 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
   cuda-arm64:
-    runs-on: ubuntu-24.04-arm  # see https://github.com/actions/partner-runner-images?tab=readme-ov-file#available-images
+    runs-on: ubuntu-26.04-arm  # see https://github.com/actions/partner-runner-images?tab=readme-ov-file#available-images
     strategy:
       matrix:
         include:
