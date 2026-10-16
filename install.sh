@@ -9,7 +9,7 @@
 PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 
 # Install mode flags (set by entrypoint.sh based on the requested action):
-#   AKSGPU_BUILD_ONLY=1        -> compile/cache the kernel module + userspace libs only.
+#   AKSGPU_BUILD_ONLY=1        -> compile the kernel module + userspace libs without DKMS registration.
 #                                 Runs on a GPU-less host (e.g. the Packer VHD builder).
 #                                 Skips every device-dependent step (modprobe, nvidia-smi,
 #                                 fabric manager, persistence) and writes a marker.
@@ -20,9 +20,11 @@ PS4='+ $(date -u -I"seconds" | cut -c1-19) '
 AKSGPU_BUILD_ONLY="${AKSGPU_BUILD_ONLY:-0}"
 AKSGPU_SKIP_KERNEL_BUILD="${AKSGPU_SKIP_KERNEL_BUILD:-0}"
 
-# Host-side marker describing what was baked into the VHD at build time. AgentBaker reads
-# this (plus its own image-digest record) to decide whether the boot-time fast path is safe.
+# Host-side marker describing what was baked into the VHD at build time.
+# AgentBaker still uses the normal install action, not install-skip-build.
 DKMS_MARKER_FILE="/opt/azure/aks-gpu/dkms-marker"
+NVIDIA_DKMS_DIR="/var/lib/dkms/nvidia"
+GPU_CACHE_DIR="/opt/gpu"
 
 KERNEL_NAME=$(uname -r)
 LOG_FILE_NAME="/var/log/nvidia-installer-$(date +%s).log"
@@ -100,6 +102,12 @@ install_nvidia_container_toolkit() {
 # userspace libraries. It performs NO device access, so it is safe to run at VHD build time on
 # a host without a GPU.
 build_kernel_module() {
+    # A shared image must be safe even when node-time cleanup never succeeds. Do not
+    # repair inherited registrations here: refuse to publish that image instead.
+    if [ "${AKSGPU_BUILD_ONLY}" = "1" ] && { [ -e "${NVIDIA_DKMS_DIR}" ] || [ -L "${NVIDIA_DKMS_DIR}" ]; }; then
+        echo "aks-gpu: refusing to prebake over an existing NVIDIA DKMS registration" >&2
+        return 1
+    fi
     # blacklist nouveau driver, nvidia driver dependency
     cp /opt/gpu/blacklist-nouveau.conf /etc/modprobe.d/blacklist-nouveau.conf
     update-initramfs -u
@@ -117,10 +125,15 @@ build_kernel_module() {
 
     resolve_runfile
 
-    # install nvidia drivers (DKMS build is the dominant cost we are hoisting to VHD build time)
-    pushd /opt/gpu
+    # Keep the installed module in the path used by AgentBaker's CPU/GRID cleanup.
+    # --no-dkms otherwise uses the runfile installer's different default path.
+    local dkms_options=(--dkms)
+    if [ "${AKSGPU_BUILD_ONLY}" = "1" ]; then
+        dkms_options=(--no-dkms "--kernel-install-path=/lib/modules/${KERNEL_NAME}/updates/dkms")
+    fi
+    pushd "${GPU_CACHE_DIR}"
     local installer_rc=0
-    /opt/gpu/${RUNFILE}/nvidia-installer -s -k=$KERNEL_NAME --log-file-name=${LOG_FILE_NAME} -a --no-drm --dkms || installer_rc=$?
+    "${GPU_CACHE_DIR}/${RUNFILE}/nvidia-installer" -s -k="$KERNEL_NAME" --log-file-name="${LOG_FILE_NAME}" -a --no-drm "${dkms_options[@]}" || installer_rc=$?
     popd
     if [ "${installer_rc}" -ne 0 ]; then
         echo "aks-gpu: nvidia-installer failed (rc=${installer_rc}) for kernel ${KERNEL_NAME}; installer log follows:"
@@ -145,8 +158,16 @@ build_kernel_module() {
 
     cleanup_overlay
 
-    # validate that the kernel module was built and registered (no device access required)
-    dkms status
+    if [ "${AKSGPU_BUILD_ONLY}" = "1" ]; then
+        local status
+        status="$(dkms status -m nvidia)" || return 1
+        if [ -n "${status}" ] || [ -e "${NVIDIA_DKMS_DIR}" ] || [ -L "${NVIDIA_DKMS_DIR}" ]; then
+            echo "aks-gpu: prebake left an NVIDIA DKMS registration" >&2
+            return 1
+        fi
+    else
+        dkms status
+    fi
     modinfo -k "$KERNEL_NAME" nvidia
 }
 
@@ -220,8 +241,7 @@ EOF
 }
 
 # baked_marker_matches returns success only when the VHD's baked driver exactly matches what
-# this node needs (kernel + driver_version + driver_kind). AgentBaker requests skip-build based
-# only on the marker's presence and delegates the actual match check here, so a CUDA-baked VHD
+# this node needs (kernel + driver_version + driver_kind). For install-skip-build, a CUDA-baked VHD
 # booting a GRID node -- or a driver-version bump since bake -- fails this check and falls back
 # to a full build.
 baked_marker_matches() {
@@ -235,12 +255,15 @@ baked_marker_matches() {
     [ "${m_kind}" = "${DRIVER_KIND}" ]
 }
 
-# build_and_mark compiles + DKMS-registers the module, then records exactly what was built so
+# build_and_mark compiles the module, then records exactly what was built so
 # the marker always reflects on-disk reality. Writing the marker after every build (not just at
 # VHD-bake time) means a boot-time fallback build also refreshes the marker, so the *next* boot
 # takes the fast path instead of rebuilding forever.
 build_and_mark() {
+    # Do not put build_kernel_module in an `if`/`||`: that disables errexit inside it.
     build_kernel_module
+    local build_status=$?
+    [ "${build_status}" -eq 0 ] || return "${build_status}"
     write_dkms_marker
 }
 
