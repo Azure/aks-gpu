@@ -70,13 +70,7 @@ jobs:
         run: |
           echo "version is $VERSION"
           echo "version is $VERSION_TAG"
-      - name: 'Azure CLI login'
-        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: 'Build and Push'
+      - name: 'Build image'
         env:
           DRIVER_VERSION: ${{ steps.load_config.outputs.cuda_version }}
           IMAGE_REPO: ${{ matrix.image_repo }}
@@ -89,6 +83,21 @@ jobs:
           image_ref="${REGISTRY_SERVER}/public/aks/${IMAGE_REPO}:${VERSION}"
           docker buildx build --platform linux/arm64/v8,linux/amd64 --build-arg DRIVER_KIND=cuda --build-arg "DRIVER_VERSION=${DRIVER_VERSION}" --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t "$image_ref" .
           docker images
+      # The build can outlast the OIDC assertion. Authenticate immediately before registry login.
+      - name: 'Azure CLI login'
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: 'Push image'
+        env:
+          IMAGE_REPO: ${{ matrix.image_repo }}
+          REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER }}
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -x
+          image_ref="${REGISTRY_SERVER}/public/aks/${IMAGE_REPO}:${VERSION}"
           az acr login -n "$REGISTRY_SERVER"
           docker push "$image_ref"
       - name: Move cache
@@ -144,13 +153,7 @@ jobs:
         run: |
           echo "version is $VERSION"
           echo "version is $VERSION_TAG"
-      - name: 'Azure CLI login'
-        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: 'Build and Push'
+      - name: 'Build image'
         env:
           DRIVER_VERSION: ${{ steps.load_config.outputs.cuda_version }}
           IMAGE_REPO: ${{ matrix.image_repo }}
@@ -163,6 +166,21 @@ jobs:
           image_ref="${REGISTRY_SERVER}/public/aks/${IMAGE_REPO}:${VERSION}"
           docker buildx build --build-arg DRIVER_KIND=cuda --build-arg "DRIVER_VERSION=${DRIVER_VERSION}" --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t "$image_ref" .
           docker images
+      # The build can outlast the OIDC assertion. Authenticate immediately before registry login.
+      - name: 'Azure CLI login'
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: 'Push image'
+        env:
+          IMAGE_REPO: ${{ matrix.image_repo }}
+          REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER }}
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -x
+          image_ref="${REGISTRY_SERVER}/public/aks/${IMAGE_REPO}:${VERSION}"
           az acr login -n "$REGISTRY_SERVER"
           docker push "$image_ref"
       - name: Move cache
@@ -226,13 +244,7 @@ jobs:
         run: |
           echo "version is $VERSION"
           echo "version is $VERSION_TAG"
-      - name: 'Azure CLI login'
-        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: 'Build and Push'
+      - name: 'Build image'
         env:
           DRIVER_URL: ${{ steps.load_config.outputs.grid_url }}
           DRIVER_VERSION: ${{ steps.load_config.outputs.grid_version }}
@@ -246,6 +258,21 @@ jobs:
           image_ref="${REGISTRY_SERVER}/public/aks/${IMAGE_REPO}:${VERSION}"
           docker buildx build --build-arg "DRIVER_URL=${DRIVER_URL}" --build-arg DRIVER_KIND=grid --build-arg "DRIVER_VERSION=${DRIVER_VERSION}" --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t "$image_ref" .
           docker images
+      # The build can outlast the OIDC assertion. Authenticate immediately before registry login.
+      - name: 'Azure CLI login'
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: 'Push image'
+        env:
+          IMAGE_REPO: ${{ matrix.image_repo }}
+          REGISTRY_SERVER: ${{ secrets.AZURE_REGISTRY_SERVER }}
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -x
+          image_ref="${REGISTRY_SERVER}/public/aks/${IMAGE_REPO}:${VERSION}"
           az acr login -n "$REGISTRY_SERVER"
           docker push "$image_ref"
       - name: Move cache
