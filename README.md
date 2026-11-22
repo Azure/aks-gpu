@@ -58,6 +58,36 @@ docker run -it --privileged --net=host --pid=host -v /opt/gpu:/mnt/gpu -v /opt/a
 
 Note the `--with-ns pid:/proc/1/ns/pid` and `--privileged`, as well as the bind mounts, these are key.
 
+## AMD GPU driver image
+
+`Dockerfile.amd` builds an image containing prebuilt `amdgpu-dkms` kernel modules
+and firmware for a single kernel. Its inputs come from the `amd` section of
+`driver_config.yml`:
+
+| Key | Build arg | Description |
+| --- | --- | --- |
+| `drivers_version` | `DRIVERS_VERSION` | amdgpu driver release under `${repo_url}/amdgpu/` |
+| `kernel_full_version` | `KERNEL_FULL_VERSION` | Exact node kernel (for example `6.8.0-1073-azure`) the modules are built for |
+| `repo_url` | `REPO_URL` | AMD package repository root |
+| `package_repo_url` | `PACKAGE_REPO_URL` | Optional full apt source override |
+| `gpg_key_url` | `GPG_KEY_URL` | Optional apt signing key override |
+
+The base image uses the same registry and Ubuntu version as the NVIDIA image
+(`BASEIMG_REGISTRY`, `VERSION`). The image is amd64 only. Modules are placed in
+`/opt/lib/modules/<kernel>/` and firmware in `/firmwareDir/updates/amdgpu`.
+Because the modules only load on the exact kernel they were built for,
+`kernel_full_version` must be updated whenever the node kernel changes.
+
+```
+docker build --platform linux/amd64 -f Dockerfile.amd \
+  --build-arg KERNEL_FULL_VERSION=6.8.0-1073-azure \
+  --build-arg DRIVERS_VERSION=31.70 \
+  --build-arg REPO_URL=https://repo.radeon.com \
+  -t aks-gpu-amd:latest .
+```
+
+or `just buildamd`.
+
 ## Fabric manager installation
 
 This repo also includes an installation script for Nvidia's fabric manager component.

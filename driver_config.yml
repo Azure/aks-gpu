@@ -17,3 +17,15 @@ grid_v20:
   # We do not support GRID drivers on ARM64 architecture.
   # GRID v20 is required for RTX PRO 6000 Blackwell Server Edition v6 SKUs.
   url: "https://download.microsoft.com/download/a7cb6d36-3bbc-43d6-9e88-e0842e6f9ab9/NVIDIA-Linux-x86_64-595.91.07-grid-azure.run"
+
+amd:
+  # AMD GPU (amdgpu-dkms) driver release from repo.radeon.com/amdgpu. amd64 only.
+  drivers_version: "31.70"
+  # The kernel modules are prebuilt for this exact kernel; it must match the node kernel.
+  kernel_full_version: "6.8.0-1073-azure"
+  repo_url: "https://repo.radeon.com"
+  # Optional overrides. When empty, the apt source is
+  # ${repo_url}/amdgpu/${drivers_version}/ubuntu <codename> main and the key is
+  # ${repo_url}/rocm/rocm.gpg.key.
+  package_repo_url: ""
+  gpg_key_url: ""

@@ -1,0 +1,57 @@
+ARG BASEIMG_REGISTRY=mcr.microsoft.com/mirror/docker/library
+ARG VERSION=24.04
+
+FROM ${BASEIMG_REGISTRY}/ubuntu:${VERSION} AS builder
+
+ARG KERNEL_FULL_VERSION
+ARG DRIVERS_VERSION
+ARG REPO_URL
+ARG PACKAGE_REPO_URL=""
+ARG GPG_KEY_URL=""
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y bc \
+    bison \
+    flex \
+    libelf-dev \
+    gnupg \
+    wget \
+    git \
+    make \
+    gcc \
+    linux-headers-${KERNEL_FULL_VERSION} \
+    linux-modules-extra-${KERNEL_FULL_VERSION}
+
+RUN mkdir --parents --mode=0755 /etc/apt/keyrings
+
+# Use custom GPG key URL if provided, otherwise use default
+RUN if [ -n "${GPG_KEY_URL}" ]; then \
+        wget ${GPG_KEY_URL} -O - | gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null; \
+    else \
+        wget ${REPO_URL}/rocm/rocm.gpg.key -O - | gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null; \
+    fi
+
+# Use custom package repo URL if provided, otherwise construct from REPO_URL.
+# The distro label (e.g. "noble") is derived from the base image.
+RUN DRIVER_LABEL="$(. /etc/os-release && echo "${VERSION_CODENAME}")" && \
+    if [ -n "${PACKAGE_REPO_URL}" ]; then \
+        echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] ${PACKAGE_REPO_URL}" | tee /etc/apt/sources.list.d/amdgpu.list; \
+    else \
+        echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] ${REPO_URL}/amdgpu/${DRIVERS_VERSION}/ubuntu ${DRIVER_LABEL} main" | tee /etc/apt/sources.list.d/amdgpu.list; \
+    fi
+RUN apt-get update && apt-get install -y amdgpu-dkms
+
+RUN depmod ${KERNEL_FULL_VERSION}
+
+FROM ${BASEIMG_REGISTRY}/ubuntu:${VERSION}
+
+ARG KERNEL_FULL_VERSION
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y kmod && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /opt/lib/modules/${KERNEL_FULL_VERSION}/updates/dkms/
+COPY --from=builder /lib/modules/${KERNEL_FULL_VERSION}/updates/dkms/amd* /opt/lib/modules/${KERNEL_FULL_VERSION}/updates/dkms/
+COPY --from=builder /lib/modules/${KERNEL_FULL_VERSION}/modules.* /opt/lib/modules/${KERNEL_FULL_VERSION}/
+COPY --from=builder /lib/modules/${KERNEL_FULL_VERSION}/kernel /opt/lib/modules/${KERNEL_FULL_VERSION}/kernel
+RUN mkdir -p /firmwareDir/updates/amdgpu
+COPY --from=builder /lib/firmware/updates/amdgpu /firmwareDir/updates/amdgpu
