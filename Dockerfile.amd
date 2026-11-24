@@ -1,5 +1,5 @@
 ARG BASEIMG_REGISTRY=mcr.microsoft.com/mirror/docker/library
-ARG VERSION=24.04
+ARG VERSION=26.04
 
 FROM ${BASEIMG_REGISTRY}/ubuntu:${VERSION} AS builder
 
