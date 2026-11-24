@@ -48,7 +48,7 @@ FROM ${BASEIMG_REGISTRY}/ubuntu:${VERSION}
 ARG KERNEL_FULL_VERSION
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y kmod && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get install -y kmod && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /opt/lib/modules/${KERNEL_FULL_VERSION}/updates/dkms/
 COPY --from=builder /lib/modules/${KERNEL_FULL_VERSION}/updates/dkms/amd* /opt/lib/modules/${KERNEL_FULL_VERSION}/updates/dkms/
 COPY --from=builder /lib/modules/${KERNEL_FULL_VERSION}/modules.* /opt/lib/modules/${KERNEL_FULL_VERSION}/
