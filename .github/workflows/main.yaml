@@ -292,9 +292,9 @@ jobs:
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-aks-gpu-amd-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-aks-amd-gpu-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-aks-gpu-amd-
+            ${{ runner.os }}-buildx-aks-amd-gpu-
       - name: 'Azure CLI login'
         uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
         with:
@@ -312,7 +312,7 @@ jobs:
           VERSION: ${{ steps.load_config.outputs.version }}
         run: |
           set -x
-          image_ref="${REGISTRY_SERVER}/public/aks/aks-gpu-amd:${VERSION}"
+          image_ref="${REGISTRY_SERVER}/public/aks/aks-amd-gpu:${VERSION}"
           docker buildx build -f Dockerfile.amd --platform linux/amd64 --build-arg "KERNEL_FULL_VERSION=${KERNEL_FULL_VERSION}" --build-arg "DRIVERS_VERSION=${DRIVERS_VERSION}" --build-arg "REPO_URL=${REPO_URL}" --build-arg "PACKAGE_REPO_URL=${PACKAGE_REPO_URL}" --build-arg "GPG_KEY_URL=${GPG_KEY_URL}" --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache-new --output=type=docker -t "$image_ref" .
           docker images
           az acr login -n "$REGISTRY_SERVER"

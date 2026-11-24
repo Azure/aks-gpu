@@ -83,7 +83,7 @@ docker build --platform linux/amd64 -f Dockerfile.amd \
   --build-arg KERNEL_FULL_VERSION=6.8.0-1073-azure \
   --build-arg DRIVERS_VERSION=31.70 \
   --build-arg REPO_URL=https://repo.radeon.com \
-  -t aks-gpu-amd:latest .
+  -t aks-amd-gpu:latest .
 ```
 
 or `just buildamd`.
