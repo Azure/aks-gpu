@@ -55,3 +55,5 @@ COPY --from=builder /lib/modules/${KERNEL_FULL_VERSION}/modules.* /opt/lib/modul
 COPY --from=builder /lib/modules/${KERNEL_FULL_VERSION}/kernel /opt/lib/modules/${KERNEL_FULL_VERSION}/kernel
 RUN mkdir -p /firmwareDir/updates/amdgpu
 COPY --from=builder /lib/firmware/updates/amdgpu /firmwareDir/updates/amdgpu
+# The firmware license requires redistributions to carry its copyright and LICENSE notices.
+COPY --from=builder /usr/share/doc/amdgpu-dkms-firmware /usr/share/doc/amdgpu-dkms-firmware
