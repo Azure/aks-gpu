@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "computedomain.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "computedomain.labels" . | nindent 4 }}
+    {{- if .Values.aks.managedByLabels.enabled }}
+    kubernetes.azure.com/managedby: aks
+    {{- end }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      {{- include "computedomain.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "computedomain.labels" . | nindent 8 }}
+        {{- include "computedomain.selectorLabels" . | nindent 8 }}
+        {{- if .Values.aks.managedByLabels.enabled }}
+        kubernetes.azure.com/managedby: aks
+        {{- end }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # Stateless, leader-elected controller — safe for the cluster autoscaler to
+        # drain/reschedule. Without this a single-replica kube-system Deployment pins
+        # its node from scale-down (CA won't evict kube-system pods lacking a PDB).
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "computedomain.serviceAccountName" . }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: compute-domain
+          image: {{ include "computedomain.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["compute-domain-controller", "-v", "$(LOG_VERBOSITY)"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: LOG_VERBOSITY
+              value: "{{ .Values.logVerbosity }}"
+            # Verbosity for the dynamically-launched compute-domain-daemon pods
+            # (their pod spec is rendered by the controller, not this chart).
+            - name: LOG_VERBOSITY_CD_DAEMON
+              value: "{{ .Values.logVerbosity }}"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            # The controller spawns the per-ComputeDomain compute-domain-daemon
+            # DaemonSet from THIS image, so it must contain compute-domain-daemon too.
+            - name: IMAGE_NAME
+              value: {{ include "computedomain.image" . }}
+            {{- if .Values.imagePullSecrets }}
+            # Pull-secret names propagated to the controller-spawned compute-domain-daemon
+            # DaemonSet pods (they're created from this same image).
+            - name: CD_DAEMON_IMAGE_PULL_SECRET_NAMES
+              value: "{{- range $i, $s := .Values.imagePullSecrets }}{{ if $i }},{{ end }}{{ $s.name }}{{- end }}"
+            {{- end }}
+            # runc: explicit "void" so the controller pod grabs no GPUs.
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: void
+            - name: IMEX_MODE
+              value: "{{ .Values.imex.mode }}"
+            - name: IMEX_ISOLATION
+              value: "{{ .Values.imex.isolation }}"
+            {{- if .Values.featureGates }}
+            - name: FEATURE_GATES
+              value: "{{- range $k, $v := .Values.featureGates }}{{ $k }}={{ $v }},{{- end }}"
+            {{- end }}
+            - name: LEADER_ELECTION_ENABLED
+              value: "{{ .Values.leaderElection.enabled }}"
+            - name: LEADER_ELECTION_LEASE_LOCK_NAME
+              value: "{{ include "computedomain.fullname" . }}"
+            - name: LEADER_ELECTION_LEASE_LOCK_NAMESPACE
+              value: "{{ .Release.Namespace }}"
+            - name: LEADER_ELECTION_LEASE_DURATION
+              value: "{{ .Values.leaderElection.leaseDuration }}"
+            - name: LEADER_ELECTION_RENEW_DEADLINE
+              value: "{{ .Values.leaderElection.renewDeadline }}"
+            - name: LEADER_ELECTION_RETRY_PERIOD
+              value: "{{ .Values.leaderElection.retryPeriod }}"

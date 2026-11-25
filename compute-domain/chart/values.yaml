@@ -1,0 +1,95 @@
+# Values for microsoft.managedcomputedomain.
+# The consumer is the AKS core-extension helm runner (not the public); the Azure.*
+# block is injected by the extension system at install time (same model as managed DRANET).
+
+nameOverride: compute-domain-controller
+fullnameOverride: compute-domain-controller
+
+image:
+  # Compute-domain controller image (contains BOTH compute-domain-controller and
+  # compute-domain-daemon; the controller spawns the daemon DaemonSet from this same
+  # image via the IMAGE_NAME env).
+  # TESTING: upstream image until the dalec/MCR onboarding lands
+  # (target: mcr.microsoft.com/oss/v2/nvidia/compute-domain-controller).
+  repository: registry.k8s.io/dra-driver-nvidia/dra-driver-nvidia-gpu
+  tag: "v0.5.0"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+aks:
+  managedByLabels:
+    enabled: false
+
+rbac:
+  create: true
+
+serviceAccount:
+  annotations: {}
+
+# IMEX deployment mode. driverManaged = the controller creates a per-ComputeDomain
+# compute-domain-daemon DaemonSet that runs nvidia-imex (host binary via CDI).
+# hostManaged is intentionally NOT supported by this managed chart (see README).
+imex:
+  mode: driverManaged
+  isolation: domain
+
+logVerbosity: 4
+
+replicas: 1
+
+leaderElection:
+  enabled: true
+  leaseDuration: "15s"
+  renewDeadline: "10s"
+  retryPeriod: "2s"
+
+# Feature gates passed to the controller (FEATURE_GATES env). Empty = upstream defaults
+# (IMEXDaemonsWithDNSNames on, requires driver >= 570.158 which R580 satisfies).
+featureGates: {}
+
+deviceClasses:
+  computeDomainDefaultChannel:
+    enabled: true
+    name: compute-domain-default-channel.nvidia.com
+  computeDomainDaemon:
+    enabled: true
+    name: compute-domain-daemon.nvidia.com
+
+priorityClassName: system-cluster-critical
+nodeSelector: {}
+tolerations:
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+    effect: NoSchedule
+  - key: CriticalAddonsOnly
+    operator: Exists
+# Require a real linux AKS node (not an ACI virtual-kubelet) on the system pool —
+# mirrors the RP synth convention (cluster-health-monitor-synth): mode=system is a
+# hard requirement, not a soft preference.
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.azure.com/cluster
+              operator: Exists
+            - key: type
+              operator: NotIn
+              values: ["virtual-kubelet"]
+            - key: kubernetes.io/os
+              operator: In
+              values: ["linux"]
+            - key: kubernetes.azure.com/mode
+              operator: In
+              values: ["system"]
+podAnnotations: {}
+podLabels: {}
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    # No CPU limit on purpose (avoids CFS throttling; matches dranet/upstream).
+    # Memory limit headroom: the controller's footprint scales with cluster size
+    # (it watches all pods/nodes), so 512Mi rather than a tight bound.
+    memory: 512Mi
